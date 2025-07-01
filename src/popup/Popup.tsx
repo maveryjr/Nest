@@ -1,0 +1,119 @@
+import React, { useState, useEffect } from 'react';
+import { Bookmark, Plus, Sidebar, Settings, ExternalLink } from 'lucide-react';
+import './popup.css';
+
+const Popup: React.FC = () => {
+  const [currentTab, setCurrentTab] = useState<chrome.tabs.Tab | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    getCurrentTab();
+  }, []);
+
+  const getCurrentTab = async () => {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]) {
+      setCurrentTab(tabs[0]);
+    }
+  };
+
+  const saveCurrentPage = async () => {
+    if (!currentTab) return;
+    
+    setIsLoading(true);
+    try {
+      await chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
+      // Show success feedback
+      setTimeout(() => {
+        window.close();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to save page:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openSidepanel = async () => {
+    try {
+      await chrome.runtime.sendMessage({ action: 'openSidePanel' });
+      window.close();
+    } catch (error) {
+      console.error('Failed to open sidepanel:', error);
+    }
+  };
+
+  const canSavePage = currentTab && 
+    currentTab.url && 
+    !currentTab.url.startsWith('chrome://') && 
+    !currentTab.url.startsWith('chrome-extension://');
+
+  return (
+    <div className="popup">
+      <div className="popup-header">
+        <div className="popup-title">
+          <Bookmark className="popup-icon" />
+          <h1>Nest</h1>
+        </div>
+      </div>
+
+      <div className="popup-content">
+        {currentTab && (
+          <div className="current-tab">
+            <div className="tab-info">
+              <div className="tab-favicon">
+                {currentTab.favIconUrl ? (
+                  <img src={currentTab.favIconUrl} alt="" width="16" height="16" />
+                ) : (
+                  <div className="favicon-placeholder">
+                    {currentTab.url ? new URL(currentTab.url).hostname.charAt(0).toUpperCase() : '?'}
+                  </div>
+                )}
+              </div>
+              <div className="tab-details">
+                <div className="tab-title">{currentTab.title || 'Untitled'}</div>
+                <div className="tab-url">
+                  {currentTab.url ? new URL(currentTab.url).hostname : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="popup-actions">
+          <button
+            onClick={saveCurrentPage}
+            disabled={!canSavePage || isLoading}
+            className="action-button primary"
+          >
+            <Plus size={16} />
+            {isLoading ? 'Saving...' : 'Save to Nest'}
+          </button>
+
+          <button
+            onClick={openSidepanel}
+            className="action-button secondary"
+          >
+            <Sidebar size={16} />
+            Open Sidebar
+          </button>
+        </div>
+
+        {!canSavePage && currentTab && (
+          <div className="warning">
+            <p>Cannot save this type of page</p>
+          </div>
+        )}
+      </div>
+
+      <div className="popup-footer">
+        <button className="footer-link" onClick={openSidepanel}>
+          <ExternalLink size={12} />
+          View all saved links
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Popup; 
