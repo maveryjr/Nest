@@ -21,10 +21,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// Handle browser action clicks
+// Handle browser action clicks (this won't fire if there's a popup, but keeping for reference)
 chrome.action.onClicked.addListener(async (tab) => {
-  // Open side panel
-  await chrome.sidePanel.open({ tabId: tab.id });
+  try {
+    // Open side panel
+    await chrome.sidePanel.open({ windowId: tab.windowId });
+  } catch (error) {
+    console.error('Failed to open side panel:', error);
+  }
 });
 
 // Handle messages from content script and popup
@@ -47,9 +51,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           break;
 
         case 'openSidePanel':
-          if (sender.tab) {
-            await chrome.sidePanel.open({ tabId: sender.tab.id });
-            sendResponse({ success: true });
+          try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]) {
+              await chrome.sidePanel.open({ windowId: tabs[0].windowId });
+              sendResponse({ success: true });
+            } else {
+              sendResponse({ error: 'No active tab found' });
+            }
+          } catch (error) {
+            console.error('Failed to open side panel:', error);
+            sendResponse({ error: error.message });
           }
           break;
 

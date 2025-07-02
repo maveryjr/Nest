@@ -36,10 +36,31 @@ const Popup: React.FC = () => {
 
   const openSidepanel = async () => {
     try {
-      await chrome.runtime.sendMessage({ action: 'openSidePanel' });
-      window.close();
+      const response = await chrome.runtime.sendMessage({ action: 'openSidePanel' });
+      console.log('Side panel response:', response);
+      if (response.success) {
+        window.close();
+      } else {
+        console.error('Failed to open side panel:', response.error);
+        // Try alternative method
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          await chrome.sidePanel.open({ windowId: tabs[0].windowId });
+          window.close();
+        }
+      }
     } catch (error) {
       console.error('Failed to open sidepanel:', error);
+      // Try direct side panel API as fallback
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          await chrome.sidePanel.open({ windowId: tabs[0].windowId });
+          window.close();
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
     }
   };
 
