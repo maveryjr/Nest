@@ -5,6 +5,7 @@ import './popup.css';
 const Popup: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<chrome.tabs.Tab | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getCurrentTab();
@@ -22,15 +23,19 @@ const Popup: React.FC = () => {
     
     console.log('Popup: Sending saveCurrentPage message...');
     setIsLoading(true);
+    setError(null);
     try {
       const response = await chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
-      console.log('Popup: Received response from background:', response);
+      if (!response.success) {
+        throw new Error(response.error || 'An unknown error occurred.');
+      }
       // Show success feedback
       setTimeout(() => {
         window.close();
       }, 1000);
     } catch (error) {
       console.error('Failed to save page:', error);
+      setError((error as Error).message);
     } finally {
       setIsLoading(false);
     }
@@ -118,6 +123,12 @@ const Popup: React.FC = () => {
           </button>
         </div>
 
+        {error && (
+          <div className="error-message">
+            <p>{error}</p>
+          </div>
+        )}
+        
         {!canSavePage && currentTab && (
           <div className="warning">
             <p>Cannot save this type of page</p>

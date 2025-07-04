@@ -173,4 +173,19 @@
 
 .footer-link:hover {
   color: #3b82f6;
+}
+
+.error-message {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fef2f2;
+  border: 1px solid #f59e9e;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.error-message p {
+  margin: 0;
+  font-size: 13px;
+  color: #924040;
 } 

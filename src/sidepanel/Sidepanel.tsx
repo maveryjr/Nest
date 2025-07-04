@@ -147,7 +147,16 @@ const Sidepanel: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-    const { error } = await supabase.auth.signInWithOtp({ email });
+
+    const redirectTo = chrome.runtime.getURL('auth.html');
+    console.log('Redirecting to:', redirectTo);
+
+    const { error } = await supabase.auth.signInWithOtp({ 
+      email,
+      options: {
+        emailRedirectTo: redirectTo,
+      }
+    });
 
     if (error) {
       setMessage(error.message);

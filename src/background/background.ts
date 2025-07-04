@@ -109,9 +109,8 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       suggestedCategory = 'learning';
     }
 
-    // Create new link
-    const newLink: SavedLink = {
-      id: Date.now().toString(),
+    // Create new link object for insertion
+    const newLink = {
       url,
       title,
       favicon,
@@ -119,14 +118,10 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       aiSummary,
       category: suggestedCategory,
       domain: domain,
-      createdAt: new Date(),
-      updatedAt: new Date()
     };
 
-    console.log('Background: New link object created:', newLink);
     // Save to storage
     await storage.addLink(newLink);
-    console.log('Background: Link saved to storage.');
 
     // Show notification
     chrome.notifications.create({
@@ -143,8 +138,10 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'Nest Error',
-      message: 'Failed to save page. Please try again.'
+      message: `Failed to save page. Error: ${(error as Error).message}`
     });
+    // Re-throw the error so the message listener can send a failure response
+    throw error;
   }
 }
 
