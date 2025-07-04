@@ -30,6 +30,7 @@ class StorageManager {
       aiSummary: dbLink.ai_summary,
       category: dbLink.category,
       collectionId: dbLink.collection_id,
+      isInInbox: dbLink.is_in_inbox || false,
       createdAt: new Date(dbLink.created_at),
       updatedAt: new Date(dbLink.updated_at),
       domain: dbLink.domain,
@@ -77,6 +78,7 @@ class StorageManager {
       user_note: link.userNote,
       ai_summary: link.aiSummary,
       category: link.category,
+      is_in_inbox: link.isInInbox || false,
     };
 
     const { error } = await supabase.from('links').insert(dbLink);
@@ -306,6 +308,78 @@ class StorageManager {
       console.error('Failed to cleanup unused tags:', error);
       return 0;
     }
+  }
+
+  // Inbox-specific methods
+  async moveToInbox(linkId: string): Promise<void> {
+    const { error } = await supabase
+      .from('links')
+      .update({ 
+        is_in_inbox: true,
+        collection_id: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', linkId);
+    if (error) throw error;
+  }
+
+  async moveFromInbox(linkId: string, collectionId?: string): Promise<void> {
+    const { error } = await supabase
+      .from('links')
+      .update({ 
+        is_in_inbox: false,
+        collection_id: collectionId || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', linkId);
+    if (error) throw error;
+  }
+
+  async getInboxLinks(): Promise<SavedLink[]> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('links')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_in_inbox', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching inbox links:', error);
+      return [];
+    }
+
+    return (data || []).map((dbLink: any) => ({
+      id: dbLink.id,
+      url: dbLink.url,
+      title: dbLink.title,
+      favicon: dbLink.favicon,
+      userNote: dbLink.user_note || '',
+      aiSummary: dbLink.ai_summary,
+      category: dbLink.category,
+      collectionId: dbLink.collection_id,
+      isInInbox: dbLink.is_in_inbox || false,
+      createdAt: new Date(dbLink.created_at),
+      updatedAt: new Date(dbLink.updated_at),
+      domain: dbLink.domain,
+    }));
+  }
+
+  async bulkMoveFromInbox(linkIds: string[], collectionId?: string): Promise<void> {
+    const { error } = await supabase
+      .from('links')
+      .update({ 
+        is_in_inbox: false,
+        collection_id: collectionId || null,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', linkIds);
+    if (error) throw error;
   }
 
   async toggleCollectionSharing(collectionId: string, makePublic: boolean): Promise<{ success: boolean; shareToken?: string; message: string }> {

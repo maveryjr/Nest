@@ -91,6 +91,7 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       aiSummary,
       category: 'general',
       domain: domain,
+      isInInbox: true, // New links go to inbox by default
     };
 
     const result = await storage.addLink(newLink);
@@ -136,6 +137,13 @@ chrome.commands.onCommand.addListener(async (command) => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tabs[0]) {
       await saveCurrentPage(tabs[0]);
+    }
+  } else if (command === 'open-command-palette') {
+    // Open the side panel to show command palette
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0]) {
+      await chrome.sidePanel.open({ tabId: tabs[0].id });
+      // The sidepanel will handle opening the command palette via its own keyboard listener
     }
   }
 }); 

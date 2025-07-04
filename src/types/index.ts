@@ -7,6 +7,7 @@ export interface SavedLink {
   aiSummary?: string;
   category: string;
   collectionId?: string;
+  isInInbox?: boolean;
   createdAt: Date;
   updatedAt: Date;
   domain: string;

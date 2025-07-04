@@ -56,6 +56,13 @@
         "mac": "Command+Shift+S"
       },
       "description": "Save current page to Nest"
+    },
+    "open-command-palette": {
+      "suggested_key": {
+        "default": "Ctrl+K",
+        "mac": "Command+K"
+      },
+      "description": "Open Nest command palette"
     }
   }
 } 

@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone } from 'lucide-react';
 import { SavedLink, Collection, StorageData } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
 import CollectionCard from './components/CollectionCard';
 import SearchResultCard from './components/SearchResultCard';
+import InboxCard from './components/InboxCard';
+import CommandPalette from './components/CommandPalette';
+import TabSync from './components/TabSync';
 import AddNoteModal from './components/AddNoteModal';
 import CreateCollectionModal from './components/CreateCollectionModal';
 import TagFilters from './components/TagFilters';
@@ -35,6 +38,7 @@ const Sidepanel: React.FC = () => {
   const [userTags, setUserTags] = useState<UserTag[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
+    inbox: true,
     holdingArea: true,
     collections: true
   });
@@ -47,6 +51,11 @@ const Sidepanel: React.FC = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [inboxLinks, setInboxLinks] = useState<SavedLink[]>([]);
+  const [selectedInboxLinks, setSelectedInboxLinks] = useState<string[]>([]);
+  const [loadingInbox, setLoadingInbox] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showTabSync, setShowTabSync] = useState(false);
 
   useEffect(() => {
     // Check for an initial session
@@ -75,14 +84,41 @@ const Sidepanel: React.FC = () => {
     loadData();
   }, []);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Command palette shortcut (Cmd/Ctrl + K)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   const loadData = async () => {
     try {
       const storageData = await storage.getData();
       setData(storageData);
+      await loadInboxLinks();
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadInboxLinks = async () => {
+    setLoadingInbox(true);
+    try {
+      const inbox = await storage.getInboxLinks();
+      setInboxLinks(inbox);
+    } catch (error) {
+      console.error('Failed to load inbox links:', error);
+    } finally {
+      setLoadingInbox(false);
     }
   };
 
@@ -219,6 +255,87 @@ const Sidepanel: React.FC = () => {
     setShowCreateCollectionModal(false);
   };
 
+  // Inbox-specific handlers
+  const handleMoveFromInbox = async (linkId: string, collectionId?: string) => {
+    try {
+      await storage.moveFromInbox(linkId, collectionId);
+      await loadInboxLinks();
+      await loadData();
+      setSelectedInboxLinks(prev => prev.filter(id => id !== linkId));
+    } catch (error) {
+      console.error('Failed to move link from inbox:', error);
+    }
+  };
+
+  const handleSelectInboxLink = (linkId: string) => {
+    setSelectedInboxLinks(prev => 
+      prev.includes(linkId) 
+        ? prev.filter(id => id !== linkId)
+        : [...prev, linkId]
+    );
+  };
+
+  const handleSelectAllInbox = () => {
+    if (selectedInboxLinks.length === inboxLinks.length) {
+      setSelectedInboxLinks([]);
+    } else {
+      setSelectedInboxLinks(inboxLinks.map(link => link.id));
+    }
+  };
+
+  const handleBulkMoveFromInbox = async (collectionId?: string) => {
+    if (selectedInboxLinks.length === 0) return;
+    
+    try {
+      await storage.bulkMoveFromInbox(selectedInboxLinks, collectionId);
+      await loadInboxLinks();
+      await loadData();
+      setSelectedInboxLinks([]);
+    } catch (error) {
+      console.error('Failed to bulk move links from inbox:', error);
+    }
+  };
+
+  // Command palette handlers
+  const handleOpenLink = (url: string) => {
+    window.open(url, '_blank');
+  };
+
+  const handleCommandPaletteCreateCollection = () => {
+    setShowCreateCollectionModal(true);
+  };
+
+  // Tab sync handlers
+  const handleSaveTabs = async (tabs: any[], collectionId?: string, toInbox?: boolean) => {
+    const saveTasks = tabs.map(async (tab) => {
+      const newLink = {
+        url: tab.url,
+        title: tab.title,
+        favicon: tab.favicon || `https://www.google.com/s2/favicons?domain=${tab.domain}&sz=32`,
+        userNote: '',
+        aiSummary: '',
+        category: 'general',
+        domain: tab.domain,
+        isInInbox: toInbox || false,
+        collectionId: toInbox ? undefined : collectionId,
+      };
+
+      return await storage.addLink(newLink);
+    });
+
+    await Promise.all(saveTasks);
+    await loadData();
+    await loadInboxLinks();
+    
+    // Show success notification
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Tabs Saved to Nest',
+      message: `Saved ${tabs.length} tab(s) ${toInbox ? 'to inbox' : collectionId ? 'to collection' : 'to holding area'}`
+    });
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -300,7 +417,7 @@ const Sidepanel: React.FC = () => {
   };
 
   // Filter function for normal (non-search, non-tag) mode
-  const filteredLinks = (searchMode || selectedTag) ? [] : data.links;
+  const filteredLinks = (searchMode || selectedTag) ? [] : data.links.filter(link => !link.isInInbox);
 
   const holdingAreaLinks = filteredLinks.filter(link => !link.collectionId);
   const getCollectionLinks = (collectionId: string) => 
@@ -363,6 +480,9 @@ const Sidepanel: React.FC = () => {
           <h1>Nest</h1>
         </div>
         <div className="header-actions">
+          <button onClick={() => setShowTabSync(true)} className="tab-sync-button" title="Tab Sync Mode">
+            <TabletSmartphone size={18} />
+          </button>
           <button onClick={saveCurrentPage} className="save-button" title="Save current page">
             <Plus size={18} />
           </button>
@@ -377,10 +497,15 @@ const Sidepanel: React.FC = () => {
         <Search className="search-icon" size={16} />
         <input
           type="text"
-          placeholder="Search your links..."
+          placeholder="Search your links... (⌘K for power mode)"
           value={searchTerm}
           onChange={handleSearchChange}
           className="search-input"
+          onFocus={() => {
+            if (!searchTerm) {
+              // Suggest using command palette for empty searches
+            }
+          }}
         />
         {searchTerm && (
           <button onClick={clearSearch} className="search-clear" title="Clear search">
@@ -388,6 +513,15 @@ const Sidepanel: React.FC = () => {
           </button>
         )}
         {isSearching && <div className="search-spinner">⟳</div>}
+        {!searchTerm && !isSearching && (
+          <button 
+            onClick={() => setShowCommandPalette(true)} 
+            className="search-power-mode" 
+            title="Open command palette (⌘K)"
+          >
+            <Command size={14} />
+          </button>
+        )}
       </div>
 
       {/* Tag Filters */}
@@ -462,8 +596,98 @@ const Sidepanel: React.FC = () => {
             )}
           </div>
         ) : (
-          /* Normal View - Holding Area and Collections */
+          /* Normal View - Inbox, Holding Area and Collections */
           <>
+            {/* Inbox Section */}
+            <div className="section inbox-section">
+              <div className="inbox-section-header">
+                <div className="inbox-section-title">
+                  <button
+                    onClick={() => toggleSection('inbox')}
+                    className="section-header"
+                    style={{ padding: 0, background: 'none', border: 'none' }}
+                  >
+                    {expandedSections.inbox ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <Inbox size={16} />
+                    <span>Inbox</span>
+                  </button>
+                  <span className="inbox-count">{inboxLinks.length}</span>
+                </div>
+                {inboxLinks.length > 0 && (
+                  <div className="inbox-actions">
+                    <button
+                      onClick={handleSelectAllInbox}
+                      className="inbox-action-button"
+                      title={selectedInboxLinks.length === inboxLinks.length ? 'Deselect all' : 'Select all'}
+                    >
+                      <CheckSquare size={14} />
+                      {selectedInboxLinks.length === inboxLinks.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                    {selectedInboxLinks.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => handleBulkMoveFromInbox()}
+                          className="inbox-action-button"
+                          title="Move selected to holding area"
+                        >
+                          <Archive size={14} />
+                          Move to Holding ({selectedInboxLinks.length})
+                        </button>
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleBulkMoveFromInbox(e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="inbox-action-button"
+                          style={{ padding: '6px 8px' }}
+                          title="Move selected links to collection"
+                          aria-label="Move selected links to collection"
+                        >
+                          <option value="">Move to Collection...</option>
+                          {data.collections.map(collection => (
+                            <option key={collection.id} value={collection.id}>
+                              {collection.name}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {expandedSections.inbox && (
+                <div className="section-content">
+                  {loadingInbox ? (
+                    <div className="loading-spinner">Loading inbox...</div>
+                  ) : inboxLinks.length === 0 ? (
+                    <div className="inbox-empty">
+                      <Inbox className="inbox-empty-icon" />
+                      <h3>Inbox is empty</h3>
+                      <p>New saves will appear here for quick organization</p>
+                    </div>
+                  ) : (
+                    inboxLinks.map(link => (
+                      <InboxCard
+                        key={link.id}
+                        link={link}
+                        collections={data.collections}
+                        onMoveFromInbox={handleMoveFromInbox}
+                        onDelete={handleDeleteLink}
+                        onUpdate={handleUpdateLink}
+                        onAddNote={handleAddNote}
+                        onTagsUpdated={handleTagsUpdated}
+                        isSelected={selectedInboxLinks.includes(link.id)}
+                        onSelect={handleSelectInboxLink}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Holding Area */}
             <div className="section">
               <button
@@ -597,6 +821,28 @@ const Sidepanel: React.FC = () => {
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        links={data.links}
+        collections={data.collections}
+        onOpenLink={handleOpenLink}
+        onAddToCollection={handleMoveToCollection}
+        onCreateCollection={handleCommandPaletteCreateCollection}
+        onSaveCurrentPage={saveCurrentPage}
+        onAddNote={handleAddNote}
+        onOpenTabSync={() => setShowTabSync(true)}
+      />
+
+      {/* Tab Sync Modal */}
+      <TabSync
+        isOpen={showTabSync}
+        onClose={() => setShowTabSync(false)}
+        collections={data.collections}
+        onSaveTabs={handleSaveTabs}
+      />
     </div>
   );
 };
