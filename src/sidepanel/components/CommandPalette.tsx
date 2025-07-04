@@ -270,11 +270,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="command-palette-overlay" onClick={onClose}>
+    <div className="modal-overlay command-palette-overlay" onClick={onClose}>
       <div className="command-palette" onClick={(e) => e.stopPropagation()}>
         <div className="command-palette-header">
           <div className="command-palette-search">
-            <Search size={16} className="command-palette-search-icon" />
+            <Search size={18} className="command-palette-search-icon" />
             <input
               ref={inputRef}
               type="text"
@@ -283,19 +283,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
               onChange={(e) => setQuery(e.target.value)}
               className="command-palette-input"
             />
-            <div className="command-palette-shortcut">
-              <CommandIcon size={12} />
-              <span>K</span>
-            </div>
           </div>
         </div>
 
         <div className="command-palette-content" ref={listRef}>
           {commands.length === 0 ? (
             <div className="command-palette-empty">
-              <Search size={24} />
               <p>No results found</p>
-              <span>Try a different search term</span>
             </div>
           ) : (
             commands.map((command, index) => (
@@ -317,9 +311,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                       {command.subtitle}
                     </div>
                   )}
-                </div>
-                <div className="command-palette-item-action">
-                  <ArrowRight size={14} />
                 </div>
               </div>
             ))

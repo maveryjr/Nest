@@ -80,5 +80,53 @@ export interface StorageData {
     openaiApiKey?: string;
     defaultCategory: string;
     autoSummarize: boolean;
+    autoTagging?: boolean;
+    autoCategorization?: boolean;
   };
+}
+
+// New AI-related types for auto-tagging and categorization
+export interface AITagSuggestion {
+  tag: string;
+  confidence: number; // 0-1 score
+  reason?: string; // Why this tag was suggested
+}
+
+export interface AICategorySuggestion {
+  category: string;
+  confidence: number;
+  reason?: string;
+}
+
+export interface AIAnalysisResult {
+  summary?: string;
+  tagSuggestions: AITagSuggestion[];
+  categorySuggestions: AICategorySuggestion[];
+  contentType?: 'article' | 'tutorial' | 'documentation' | 'video' | 'tool' | 'reference' | 'blog' | 'news' | 'research' | 'other';
+  topics?: string[]; // Main topics/themes identified
+  complexity?: 'beginner' | 'intermediate' | 'advanced';
+  readingTime?: number; // Estimated reading time in minutes
+}
+
+export interface SmartCollection {
+  id: string;
+  name: string;
+  description: string;
+  query: string; // AI-generated query for finding relevant links
+  isSystem: boolean; // Whether this is a system-generated collection
+  autoUpdate: boolean; // Whether to automatically add new matching links
+  icon?: string;
+  color?: string;
+  filters?: {
+    categories?: string[];
+    tags?: string[];
+    domains?: string[];
+    dateRange?: {
+      start?: Date;
+      end?: Date;
+    };
+    contentType?: string[];
+  };
+  createdAt: Date;
+  updatedAt: Date;
 } 

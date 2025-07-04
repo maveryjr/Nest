@@ -20,52 +20,36 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({ link, onSave, onClose }) =>
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Add Note</h2>
-          <button onClick={onClose} className="close-button" title="Close">
+          <h2 className="modal-title">Add Note</h2>
+          <button onClick={onClose} className="modal-close-button" title="Close">
             <X size={20} />
           </button>
         </div>
 
-        <div className="modal-body">
-          <div className="link-preview">
-            <div className="link-preview-favicon">
-              {link.favicon ? (
-                <img src={link.favicon} alt="" width="16" height="16" />
-              ) : (
-                <div className="favicon-placeholder">
-                  {link.domain.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <div className="link-preview-info">
-              <div className="link-preview-title">{link.title}</div>
-              <div className="link-preview-url">{link.domain}</div>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="note">Note:</label>
+              <label htmlFor="note">Your Note</label>
               <textarea
                 id="note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Add a note about why you saved this link..."
-                rows={4}
+                rows={6}
                 autoFocus
               />
             </div>
+          </div>
 
-            <div className="modal-actions">
-              <button type="button" onClick={onClose} className="button-secondary">
-                Cancel
-              </button>
-              <button type="submit" className="button-primary">
-                Save Note
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="button">
+              Cancel
+            </button>
+            <button type="submit" className="button primary">
+              Save Note
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

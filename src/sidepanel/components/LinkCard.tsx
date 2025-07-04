@@ -152,10 +152,10 @@ const LinkCard: React.FC<LinkCardProps> = ({
 
   return (
     <div className="link-card">
-      <div className="link-header">
-        <div className="link-favicon">
+      <div className="link-card-header">
+        <div className="link-card-favicon">
           {link.favicon ? (
-            <img src={link.favicon} alt="" width="16" height="16" />
+            <img src={link.favicon} alt="" width="24" height="24" />
           ) : (
             <div 
               className="favicon-placeholder"
@@ -165,213 +165,222 @@ const LinkCard: React.FC<LinkCardProps> = ({
             </div>
           )}
         </div>
-        <div className="link-info">
-          <h3 className="link-title" onClick={handleOpenLink} title={link.title}>
-            {link.title}
-          </h3>
-          <div className="link-meta">
-            <span className="link-domain">{link.domain}</span>
-            <span className="link-date">{formatDate(link.createdAt)}</span>
-          </div>
-        </div>
-        <div className="link-actions">
-          <button 
-            onClick={handleOpenLink}
-            className="action-button"
-            title="Open link"
-          >
-            <ExternalLink size={14} />
-          </button>
-          <div className="dropdown">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="action-button"
-              title="More options"
-            >
-              <MoreHorizontal size={14} />
-            </button>
-            {showMenu && (
-              <div className="dropdown-menu">
-                <button onClick={() => {
-                  onAddNote(link);
-                  setShowMenu(false);
-                }}>
-                  <Edit3 size={14} />
-                  Edit note
-                </button>
-                <button onClick={() => {
-                  setShowTagEditor(!showTagEditor);
-                  setShowMenu(false);
-                }}>
-                  <Tag size={14} />
-                  Edit tags
-                </button>
-                {link.highlights && link.highlights.length > 0 && (
-                  <button onClick={() => {
-                    setShowHighlights(!showHighlights);
-                    setShowMenu(false);
-                  }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-                    </svg>
-                    {showHighlights ? 'Hide' : 'Show'} highlights ({link.highlights.length})
-                  </button>
-                )}
-                <button onClick={() => {
-                  setShowCollections(!showCollections);
-                }}>
-                  <FolderPlus size={14} />
-                  Move to collection
-                </button>
-                <button 
-                  onClick={() => {
-                    onDelete(link.id);
-                    setShowMenu(false);
-                  }}
-                  className="delete-action"
+        <div className="link-card-main">
+          <div className="link-card-info-header">
+            <div className="link-card-title-section">
+              <h3 className="link-card-title" onClick={handleOpenLink} title={link.title}>
+                {link.title}
+              </h3>
+              <div className="link-meta">
+                <span className="link-domain">{link.domain}</span>
+                <span className="link-date">{formatDate(link.createdAt)}</span>
+              </div>
+            </div>
+            <div className="link-actions">
+              <button 
+                onClick={handleOpenLink}
+                className="action-button"
+                title="Open link"
+              >
+                <ExternalLink size={14} />
+              </button>
+              <div className="dropdown">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="action-button"
+                  title="More options"
                 >
-                  <Trash2 size={14} />
-                  Delete
+                  <MoreHorizontal size={14} />
                 </button>
+                {showMenu && (
+                  <div className="dropdown-menu">
+                    <button onClick={() => {
+                      onAddNote(link);
+                      setShowMenu(false);
+                    }} className="dropdown-menu-item">
+                      <Edit3 size={14} />
+                      <span>Edit note</span>
+                    </button>
+                    <button onClick={() => {
+                      setShowTagEditor(!showTagEditor);
+                      setShowMenu(false);
+                    }} className="dropdown-menu-item">
+                      <Tag size={14} />
+                      <span>Edit tags</span>
+                    </button>
+                    {link.highlights && link.highlights.length > 0 && (
+                      <button onClick={() => {
+                        setShowHighlights(!showHighlights);
+                        setShowMenu(false);
+                      }} className="dropdown-menu-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z"/>
+                        </svg>
+                        <span>{showHighlights ? 'Hide' : 'Show'} highlights ({link.highlights.length})</span>
+                      </button>
+                    )}
+                    <button onClick={() => {
+                      setShowCollections(!showCollections);
+                      setShowMenu(false); // Hide main menu when opening collections
+                    }} className="dropdown-menu-item">
+                      <FolderPlus size={14} />
+                      <span>Move to collection</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        onDelete(link.id);
+                        setShowMenu(false);
+                      }}
+                      className="dropdown-menu-item delete-action"
+                    >
+                      <Trash2 size={14} />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Collapsible content area */}
+          <div className="link-card-body">
+            {showCollections && (
+              <div className="collections-menu">
+                <div className="collections-header">Move to:</div>
+                {collections.map(collection => (
+                  <button
+                    key={collection.id}
+                    onClick={() => {
+                      onMoveToCollection(link.id, collection.id);
+                      setShowCollections(false);
+                    }}
+                    className="collection-option"
+                  >
+                    {collection.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    onMoveToCollection(link.id, ''); // Assuming empty string removes from collection
+                    setShowCollections(false);
+                  }}
+                  className="collection-option"
+                >
+                  Remove from collection
+                </button>
+              </div>
+            )}
+
+            {showTagEditor && (
+              <div className="tag-editor">
+                <div className="tag-editor-header">
+                  <span>Edit Tags</span>
+                  <button 
+                    onClick={() => setShowTagEditor(false)}
+                    className="tag-editor-close"
+                    title="Close tag editor"
+                  >
+                    &times;
+                  </button>
+                </div>
+                {loadingTags ? (
+                  <div className="tag-editor-loading">Loading tags...</div>
+                ) : (
+                  <TagInput
+                    linkId={link.id} // Assuming TagInput can fetch its own tags now
+                    onTagsUpdated={() => {
+                      loadLinkTags(); // Reload this card's tags
+                      if (onTagsUpdated) onTagsUpdated(); // Notify parent
+                      setShowTagEditor(false);
+                    }}
+                    onCancel={() => setShowTagEditor(false)}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Display tags when not editing */}
+            {!showTagEditor && linkTags.length > 0 && (
+              <div className="link-tags">
+                {linkTags.map((tag) => (
+                  <span 
+                    key={tag.id || tag.name}
+                    className="link-tag"
+                    title={`Filter by ${tag.name}`}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {link.userNote && (
+              <div className="link-note">
+                <strong>Note:</strong> {link.userNote}
+              </div>
+            )}
+
+            {link.aiSummary && (
+              <div className="link-summary">
+                <strong>Summary:</strong> {link.aiSummary}
+              </div>
+            )}
+
+            <div className="link-category">
+              <span 
+                className="category-badge"
+                style={{ backgroundColor: getCategoryColor(link.category) }}
+              >
+                {link.category}
+              </span>
+            </div>
+
+            {/* Highlights Section */}
+            {link.highlights && link.highlights.length > 0 && (
+              <div className="link-highlights-section">
+                <div className="highlights-header">
+                  <button 
+                    onClick={() => setShowHighlights(!showHighlights)}
+                    className="highlights-toggle"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z"/>
+                    </svg>
+                    <span>{link.highlights.length} highlight{link.highlights.length !== 1 ? 's' : ''}</span>
+                    <svg 
+                      width="12" 
+                      height="12" 
+                      viewBox="0 0 24 24" 
+                      className={`highlights-chevron ${showHighlights ? 'expanded' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
+                  </button>
+                </div>
+                
+                {showHighlights && (
+                  <div className="highlights-list">
+                    {link.highlights.map((highlight) => (
+                      <HighlightCard
+                        key={highlight.id}
+                        highlight={highlight}
+                        onAddNote={handleHighlightNoteAdd}
+                        onDelete={handleHighlightDelete}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {showCollections && (
-        <div className="collections-menu">
-          <div className="collections-header">Move to:</div>
-          {collections.map(collection => (
-            <button
-              key={collection.id}
-              onClick={() => {
-                onMoveToCollection(link.id, collection.id);
-                setShowCollections(false);
-                setShowMenu(false);
-              }}
-              className="collection-option"
-            >
-              {collection.name}
-            </button>
-          ))}
-          <button
-            onClick={() => {
-              onMoveToCollection(link.id, '');
-              setShowCollections(false);
-              setShowMenu(false);
-            }}
-            className="collection-option"
-          >
-            Remove from collection
-          </button>
-        </div>
-      )}
-
-      {/* Tag Editor */}
-      {showTagEditor && (
-        <div className="tag-editor">
-          <div className="tag-editor-header">
-            <span>Edit Tags</span>
-            <button 
-              onClick={() => setShowTagEditor(false)}
-              className="tag-editor-close"
-              title="Close tag editor"
-            >
-              ×
-            </button>
-          </div>
-          {loadingTags ? (
-            <div className="tag-editor-loading">Loading tags...</div>
-          ) : (
-            <TagInput
-              selectedTags={linkTags}
-              availableTags={availableTags}
-              onTagsChange={handleTagsChange}
-              placeholder="Add tags to organize this link..."
-              maxTags={8}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Display tags when not editing */}
-      {!showTagEditor && linkTags.length > 0 && (
-        <div className="link-tags">
-          {linkTags.map((tag) => (
-            <span 
-              key={tag.id || tag.name}
-              className="link-tag"
-              style={{ backgroundColor: getTagColor(tag.name) }}
-              title={`Filter by ${tag.name}`}
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {link.userNote && (
-        <div className="link-note">
-          <strong>Note:</strong> {link.userNote}
-        </div>
-      )}
-
-      {link.aiSummary && (
-        <div className="link-summary">
-          <strong>Summary:</strong> {link.aiSummary}
-        </div>
-      )}
-
-      <div className="link-category">
-        <span 
-          className="category-badge"
-          style={{ backgroundColor: getCategoryColor(link.category) }}
-        >
-          {link.category}
-        </span>
-      </div>
-
-      {/* Highlights Section */}
-      {link.highlights && link.highlights.length > 0 && (
-        <div className="link-highlights-section">
-          {console.log('LinkCard: Rendering highlights section for link:', link.id, 'with', link.highlights.length, 'highlights')}
-          <div className="highlights-header">
-            <button 
-              onClick={() => setShowHighlights(!showHighlights)}
-              className="highlights-toggle"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
-              </svg>
-              <span>{link.highlights.length} highlight{link.highlights.length !== 1 ? 's' : ''}</span>
-              <svg 
-                width="12" 
-                height="12" 
-                viewBox="0 0 24 24" 
-                className={`highlights-chevron ${showHighlights ? 'expanded' : ''}`}
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          
-          {showHighlights && (
-            <div className="highlights-list">
-              {link.highlights.map((highlight) => (
-                <HighlightCard
-                  key={highlight.id}
-                  highlight={highlight}
-                  onAddNote={handleHighlightNoteAdd}
-                  onDelete={handleHighlightDelete}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, User, Palette, Database, Share2, Cog, Info, 
   Download, Trash2, Eye, EyeOff, Mail, Calendar,
-  Tag, FileText, BarChart3, ExternalLink, HelpCircle
+  Tag, FileText, BarChart3, ExternalLink, HelpCircle, Sparkles
 } from 'lucide-react';
 import { storage } from '../../utils/storage';
 import { supabase } from '../../utils/supabase';
@@ -35,7 +35,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     defaultPrivacy: false,
     showTooltips: true,
     compactView: false,
-    darkMode: false
+    darkMode: false,
+    autoTagging: false,
+    autoCategorization: false,
+    openaiApiKey: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,7 +70,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         defaultPrivacy: false,
         showTooltips: true,
         compactView: false,
-        darkMode: false
+        darkMode: false,
+        autoTagging: data.settings.autoTagging,
+        autoCategorization: data.settings.autoCategorization,
+        openaiApiKey: data.settings.openaiApiKey
       });
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -181,15 +187,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   if (loading) {
     return (
       <div className="modal-overlay">
-        <div className="modal settings-modal">
+        <div className="modal-content settings-modal">
           <div className="modal-header">
-            <h2>Settings</h2>
-            <button onClick={onClose} className="modal-close" title="Close">
+            <h2 className="modal-title">Settings</h2>
+            <button onClick={onClose} className="modal-close-button" title="Close">
               <X size={20} />
             </button>
           </div>
-          <div className="modal-content">
-            <div className="loading-spinner">Loading settings...</div>
+          <div className="settings-content">
+            <div className="loading-spinner" style={{margin: 'auto'}}>Loading settings...</div>
           </div>
         </div>
       </div>
@@ -198,17 +204,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal settings-modal">
-        <div className="modal-header">
-          <h2>Settings</h2>
-          <button onClick={onClose} className="modal-close" title="Close">
-            <X size={20} />
-          </button>
-        </div>
-
+      <div className="modal-content settings-modal">
         <div className="settings-content">
-          {/* Tab Navigation */}
           <div className="settings-tabs">
+            <div style={{ padding: 'var(--space-1)', marginBottom: 'var(--space-4)' }}>
+              <h2 className="modal-title">Settings</h2>
+            </div>
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
@@ -222,14 +223,17 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 </button>
               );
             })}
+            <div style={{ marginTop: 'auto', paddingTop: 'var(--space-4)'}}>
+                <button onClick={onClose} className="button" style={{width: '100%'}}>
+                    Close
+                </button>
+            </div>
           </div>
 
-          {/* Tab Content */}
           <div className="settings-panel">
             {activeTab === 'account' && (
               <div className="settings-section">
                 <h3>Account Information</h3>
-                
                 <div className="setting-group">
                   <div className="setting-item">
                     <div className="setting-info">
@@ -240,7 +244,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                       </div>
                     </div>
                   </div>
-
                   <div className="setting-item">
                     <div className="setting-info">
                       <Calendar size={16} />
@@ -252,6 +255,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                   </div>
                 </div>
 
+                <h3>Statistics</h3>
                 <div className="stats-grid">
                   <div className="stat-card">
                     <div className="stat-number">{userStats.linkCount}</div>
@@ -265,14 +269,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     <div className="stat-number">{userStats.tagCount}</div>
                     <div className="stat-label">Tags Used</div>
                   </div>
-                  <div className="stat-card">
+                   <div className="stat-card">
                     <div className="stat-number">{userStats.totalViews}</div>
                     <div className="stat-label">Total Views</div>
                   </div>
                 </div>
-
-                <div className="setting-actions">
-                  <button onClick={handleLogout} className="settings-button danger">
+                 <div className="setting-actions" style={{marginTop: 'var(--space-5)'}}>
+                  <button onClick={handleLogout} className="button danger">
                     Logout
                   </button>
                 </div>
@@ -281,154 +284,115 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
             {activeTab === 'preferences' && (
               <div className="settings-section">
-                <h3>Application Preferences</h3>
-
+                <h3>Preferences</h3>
                 <div className="setting-group">
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <div>
-                        <div className="setting-label">Auto-summarize Links</div>
-                        <div className="setting-description">Automatically generate AI summaries for saved links</div>
-                      </div>
+                    <div className="setting-item">
+                        <div className="setting-info">
+                            <div className="setting-label">Auto-summarize Links</div>
+                        </div>
+                        <label className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            checked={settings.autoSummarize}
+                            onChange={(e) => saveSettings({ ...settings, autoSummarize: e.target.checked })}
+                            disabled={saving}
+                            aria-label="Auto-summarize Links"
+                        />
+                        <span className="toggle-slider"></span>
+                        </label>
                     </div>
-                    <label className="toggle-switch" title="Toggle auto-summarize">
-                      <input
-                        type="checkbox"
-                        checked={settings.autoSummarize}
-                        onChange={(e) => saveSettings({ ...settings, autoSummarize: e.target.checked })}
-                        disabled={saving}
-                        aria-label="Auto-summarize links"
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
-
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <div>
-                        <div className="setting-label">Default Category</div>
-                        <div className="setting-description">Default category for new links</div>
-                      </div>
+                    <div className="setting-item">
+                        <div className="setting-info">
+                            <div className="setting-label">Auto-tagging</div>
+                        </div>
+                        <label className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            checked={settings.autoTagging || false}
+                            onChange={(e) => saveSettings({ ...settings, autoTagging: e.target.checked })}
+                            disabled={saving}
+                            aria-label="Auto-tagging"
+                        />
+                        <span className="toggle-slider"></span>
+                        </label>
                     </div>
-                    <select
-                      value={settings.defaultCategory}
-                      onChange={(e) => saveSettings({ ...settings, defaultCategory: e.target.value })}
-                      className="settings-select"
-                      disabled={saving}
-                      title="Select default category"
-                      aria-label="Default category"
-                    >
-                      <option value="general">General</option>
-                      <option value="work">Work</option>
-                      <option value="personal">Personal</option>
-                      <option value="learning">Learning</option>
-                    </select>
-                  </div>
-
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <div>
-                        <div className="setting-label">Show Tooltips</div>
-                        <div className="setting-description">Display helpful tooltips throughout the interface</div>
-                      </div>
+                    <div className="setting-item">
+                        <div className="setting-info">
+                            <div className="setting-label">Auto-categorization</div>
+                        </div>
+                        <label className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            checked={settings.autoCategorization || false}
+                            onChange={(e) => saveSettings({ ...settings, autoCategorization: e.target.checked })}
+                            disabled={saving}
+                            aria-label="Auto-categorization"
+                        />
+                        <span className="toggle-slider"></span>
+                        </label>
                     </div>
-                    <label className="toggle-switch" title="Toggle show tooltips">
-                      <input
-                        type="checkbox"
-                        checked={settings.showTooltips}
-                        onChange={(e) => saveSettings({ ...settings, showTooltips: e.target.checked })}
-                        disabled={saving}
-                        aria-label="Show tooltips"
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
-
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <div>
-                        <div className="setting-label">Compact View</div>
-                        <div className="setting-description">Use a more compact layout to show more content</div>
-                      </div>
+                </div>
+                <h3 style={{marginTop: 'var(--space-5)'}}>Advanced</h3>
+                <div className="setting-group">
+                    <div className="setting-item">
+                        <div className="setting-info">
+                            <div>
+                                <div className="setting-label">OpenAI API Key</div>
+                                <div className="setting-description">Used for enhanced AI features.</div>
+                            </div>
+                        </div>
+                        <input
+                            type="password"
+                            value={settings.openaiApiKey || ''}
+                            onChange={(e) => saveSettings({ ...settings, openaiApiKey: e.target.value })}
+                            placeholder="sk-..."
+                            className="form-control"
+                            style={{width: '200px'}}
+                            disabled={saving}
+                        />
                     </div>
-                    <label className="toggle-switch" title="Toggle compact view">
-                      <input
-                        type="checkbox"
-                        checked={settings.compactView}
-                        onChange={(e) => saveSettings({ ...settings, compactView: e.target.checked })}
-                        disabled={saving}
-                        aria-label="Compact view"
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'data' && (
-              <div className="settings-section">
-                <h3>Data Management</h3>
-
-                <div className="setting-group">
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <Download size={16} />
-                      <div>
-                        <div className="setting-label">Export Data</div>
-                        <div className="setting-description">Download all your links, collections, and tags as JSON</div>
-                      </div>
+                <div className="settings-section">
+                    <h3>Data Management</h3>
+                    <div className="setting-group">
+                        <div className="setting-item">
+                            <div className="setting-info">
+                                <Download size={16} />
+                                <div>
+                                    <div className="setting-label">Export Data</div>
+                                    <div className="setting-description">Download all your data as a JSON file.</div>
+                                </div>
+                            </div>
+                            <button onClick={handleExportData} className="button">Export</button>
+                        </div>
+                        <div className="setting-item">
+                            <div className="setting-info">
+                                <Trash2 size={16} />
+                                <div>
+                                    <div className="setting-label">Cleanup Unused Tags</div>
+                                    <div className="setting-description">Remove any tags that are not associated with any links.</div>
+                                </div>
+                            </div>
+                            <button onClick={handleCleanupTags} className="button danger">Cleanup</button>
+                        </div>
                     </div>
-                    <button onClick={handleExportData} className="settings-button">
-                      Export
-                    </button>
-                  </div>
-
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <Trash2 size={16} />
-                      <div>
-                        <div className="setting-label">Cleanup Unused Tags</div>
-                        <div className="setting-description">Remove tags that aren't used by any links</div>
-                      </div>
-                    </div>
-                    <button onClick={handleCleanupTags} className="settings-button">
-                      Cleanup
-                    </button>
-                  </div>
                 </div>
-
-                <div className="data-usage">
-                  <h4>Storage Usage</h4>
-                  <div className="usage-items">
-                    <div className="usage-item">
-                      <FileText size={14} />
-                      <span>{userStats.linkCount} links</span>
-                    </div>
-                    <div className="usage-item">
-                      <Tag size={14} />
-                      <span>{userStats.tagCount} tags</span>
-                    </div>
-                    <div className="usage-item">
-                      <BarChart3 size={14} />
-                      <span>{userStats.collectionCount} collections</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             )}
 
             {activeTab === 'sharing' && (
               <div className="settings-section">
                 <h3>Sharing & Privacy</h3>
-
                 <div className="setting-group">
                   <div className="setting-item">
                     <div className="setting-info">
-                      <div>
-                        <div className="setting-label">Default Collection Privacy</div>
-                        <div className="setting-description">Make new collections public by default</div>
-                      </div>
+                        <div>
+                            <div className="setting-label">Default Collection Privacy</div>
+                            <div className="setting-description">Make new collections public by default</div>
+                        </div>
                     </div>
                     <label className="toggle-switch" title="Toggle default privacy">
                       <input
@@ -442,19 +406,18 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     </label>
                   </div>
                 </div>
-
-                <div className="sharing-stats">
+                 <div className="sharing-stats" style={{marginTop: 'var(--space-5)'}}>
                   <h4>Sharing Analytics</h4>
-                  <div className="stats-row">
-                    <div className="stat-item">
-                      <Eye size={16} />
-                      <span>{userStats.publicCollections} public collections</span>
+                   <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-number">{userStats.publicCollections}</div>
+                            <div className="stat-label">Public collections</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{userStats.totalViews}</div>
+                            <div className="stat-label">Total views</div>
+                        </div>
                     </div>
-                    <div className="stat-item">
-                      <BarChart3 size={16} />
-                      <span>{userStats.totalViews} total views</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -462,7 +425,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             {activeTab === 'about' && (
               <div className="settings-section">
                 <h3>About Nest</h3>
-
                 <div className="about-info">
                   <div className="app-info">
                     <div className="app-logo">N</div>
@@ -471,13 +433,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                       <div className="app-version">Version 1.0.0</div>
                     </div>
                   </div>
-
                   <p className="app-description">
                     Nest is a powerful browser extension that helps you save, organize, and share your bookmarks 
                     with AI-powered summaries, flexible tagging, and beautiful collections.
                   </p>
                 </div>
-
                 <div className="support-links">
                   <h4>Support & Resources</h4>
                   <div className="link-grid">
@@ -495,27 +455,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     </a>
                   </div>
                 </div>
-
-                <div className="credits">
-                  <p>Built with ❤️ by the Nest team</p>
-                  <p>Powered by Supabase, React, and Chrome Extensions API</p>
-                </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Message */}
-        {message && (
-          <div className={`settings-message ${message.includes('Failed') ? 'error' : 'success'}`}>
-            {message}
+            {message && (
+                <div className={`settings-message ${message.includes('Failed') ? 'error' : 'success'}`}>
+                    {message}
+                </div>
+            )}
           </div>
-        )}
-
-        <div className="modal-footer">
-          <button onClick={onClose} className="modal-button secondary">
-            Close
-          </button>
         </div>
       </div>
     </div>

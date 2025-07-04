@@ -46,7 +46,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
 
   return (
     <>
-      <div className="collection-card">
+      <div className={`collection-card ${isExpanded ? 'expanded' : ''}`}>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="collection-header"
@@ -73,7 +73,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
                 e.stopPropagation();
                 handleShareCollection();
               }}
-              className="share-collection-button"
+              className="action-button share-collection-button"
               title="Share collection"
             >
               <Share2 size={14} />

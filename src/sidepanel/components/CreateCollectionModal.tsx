@@ -21,48 +21,48 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({ onSave, o
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Create Collection</h2>
-          <button onClick={onClose} className="close-button" title="Close">
+          <h2 className="modal-title">Create Collection</h2>
+          <button onClick={onClose} className="modal-close-button" title="Close">
             <X size={20} />
           </button>
         </div>
 
-        <div className="modal-body">
-          <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="collection-name">Collection Name:</label>
+              <label htmlFor="collection-name">Collection Name</label>
               <input
                 id="collection-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter collection name..."
+                placeholder="e.g. Design Inspiration"
                 required
                 autoFocus
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="collection-description">Description (optional):</label>
+              <label htmlFor="collection-description">Description (optional)</label>
               <textarea
                 id="collection-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what this collection is for..."
+                placeholder="A short description of this collection"
                 rows={3}
               />
             </div>
+          </div>
 
-            <div className="modal-actions">
-              <button type="button" onClick={onClose} className="button-secondary">
-                Cancel
-              </button>
-              <button type="submit" className="button-primary" disabled={!name.trim()}>
-                Create Collection
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="modal-footer">
+            <button type="button" onClick={onClose} className="button">
+              Cancel
+            </button>
+            <button type="submit" className="button primary" disabled={!name.trim()}>
+              Create Collection
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
