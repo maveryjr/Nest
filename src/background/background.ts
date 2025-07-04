@@ -1,6 +1,6 @@
 import { storage } from '../utils/storage';
 import { aiService } from '../utils/ai';
-import { SavedLink } from '../types';
+import { SavedLink, Highlight } from '../types';
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
@@ -11,6 +11,13 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ['page', 'link']
   });
 
+  // Create context menu for selected text
+  chrome.contextMenus.create({
+    id: 'saveHighlight',
+    title: 'Save highlight to Nest',
+    contexts: ['selection']
+  });
+
   console.log('Nest extension installed');
 });
 
@@ -18,6 +25,8 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'saveToNest' && tab) {
     await saveCurrentPage(tab, info.linkUrl);
+  } else if (info.menuItemId === 'saveHighlight' && tab && info.selectionText) {
+    await saveHighlight(tab, info.selectionText);
   }
 });
 
@@ -38,6 +47,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs[0]) {
           const result = await saveCurrentPage(tabs[0]);
+          sendResponse(result);
+        } else {
+          sendResponse({ success: false, error: 'No active tab found.' });
+        }
+      } else if (request.action === 'saveHighlight') {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          const result = await saveHighlight(tabs[0], request.selectedText, request.context, request.position);
           sendResponse(result);
         } else {
           sendResponse({ success: false, error: 'No active tab found.' });
@@ -128,6 +145,77 @@ async function getPageContent(tabId: number): Promise<{ content: string }> {
   } catch (error) {
     console.error('Failed to get page content:', error);
     return { content: '' };
+  }
+}
+
+async function saveHighlight(tab: chrome.tabs.Tab, selectedText: string, context?: string, position?: any): Promise<{ success: boolean; error?: string; linkId?: string }> {
+  try {
+    const url = tab.url;
+    const title = tab.title || 'Untitled';
+    
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+      return { success: false, error: 'Cannot save highlights on this type of page.' };
+    }
+
+    const domain = new URL(url).hostname;
+
+    // Check if we already have a saved link for this URL
+    const existingLink = await storage.getLinkByUrl(url);
+    
+    const highlight: Highlight = {
+      id: `highlight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      selectedText,
+      context,
+      position,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    let linkId: string;
+
+    if (existingLink) {
+      // Add highlight to existing link
+      const updatedHighlights = [...(existingLink.highlights || []), highlight];
+      await storage.updateLink(existingLink.id, { highlights: updatedHighlights });
+      linkId = existingLink.id;
+    } else {
+      // Create new link with highlight
+      const newLink = {
+        url,
+        title,
+        favicon: tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+        userNote: '',
+        category: 'general',
+        domain: domain,
+        isInInbox: true,
+        highlights: [highlight]
+      };
+
+      const result = await storage.addLink(newLink);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save link to database.');
+      }
+      linkId = result.linkId!;
+    }
+
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Highlight Saved',
+      message: `Highlight saved from "${title}"`
+    });
+
+    return { success: true, linkId };
+  } catch (error) {
+    console.error('Failed to save highlight:', error);
+    const errorMessage = (error as Error).message || 'An unknown error occurred.';
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Nest Error',
+      message: `Failed to save highlight: ${errorMessage}`
+    });
+    return { success: false, error: errorMessage };
   }
 }
 

@@ -31,6 +31,7 @@ class StorageManager {
       category: dbLink.category,
       collectionId: dbLink.collection_id,
       isInInbox: dbLink.is_in_inbox || false,
+      highlights: this.parseHighlights(dbLink.highlights),
       createdAt: new Date(dbLink.created_at),
       updatedAt: new Date(dbLink.updated_at),
       domain: dbLink.domain,
@@ -59,7 +60,7 @@ class StorageManager {
     return data;
   }
   
-  async addLink(link: Omit<SavedLink, 'id' | 'createdAt' | 'updatedAt' | 'user_id'>): Promise<{ success: boolean, error?: string }> {
+  async addLink(link: Omit<SavedLink, 'id' | 'createdAt' | 'updatedAt' | 'user_id'>): Promise<{ success: boolean, error?: string, linkId?: string }> {
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData.session?.user;
     if (!user) {
@@ -79,18 +80,38 @@ class StorageManager {
       ai_summary: link.aiSummary,
       category: link.category,
       is_in_inbox: link.isInInbox || false,
+      highlights: link.highlights ? JSON.stringify(link.highlights) : null,
     };
 
-    const { error } = await supabase.from('links').insert(dbLink);
+    const { data, error } = await supabase.from('links').insert(dbLink).select('id').single();
     if (error) {
       console.error('Supabase addLink error:', error);
       return { success: false, error: error.message || 'Database error occurred.' };
     }
-    return { success: true };
+    return { success: true, linkId: data.id };
   }
 
   async updateLink(linkId: string, updates: Partial<SavedLink>): Promise<void> {
-    const { error } = await supabase.from('links').update({ ...updates, updatedAt: new Date() }).eq('id', linkId);
+    // Convert highlights to JSON for database storage
+    const dbUpdates: any = { ...updates, updated_at: new Date() };
+    if (updates.highlights !== undefined) {
+      dbUpdates.highlights = updates.highlights ? JSON.stringify(updates.highlights) : null;
+    }
+    // Remove camelCase fields that don't exist in database
+    delete dbUpdates.collectionId;
+    delete dbUpdates.userNote;
+    delete dbUpdates.aiSummary;
+    delete dbUpdates.isInInbox;
+    delete dbUpdates.createdAt;
+    delete dbUpdates.updatedAt;
+    
+    // Map camelCase to snake_case for database fields
+    if (updates.collectionId !== undefined) dbUpdates.collection_id = updates.collectionId;
+    if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
+    if (updates.aiSummary !== undefined) dbUpdates.ai_summary = updates.aiSummary;
+    if (updates.isInInbox !== undefined) dbUpdates.is_in_inbox = updates.isInInbox;
+    
+    const { error } = await supabase.from('links').update(dbUpdates).eq('id', linkId);
     if (error) throw error;
   }
 
@@ -161,6 +182,8 @@ class StorageManager {
         aiSummary: result.ai_summary,
         category: result.category,
         collectionId: result.collection_id,
+        isInInbox: result.is_in_inbox || false,
+        highlights: this.parseHighlights(result.highlights),
         createdAt: new Date(result.created_at),
         updatedAt: new Date(result.updated_at),
         domain: result.domain,
@@ -276,6 +299,8 @@ class StorageManager {
         aiSummary: dbLink.ai_summary,
         category: dbLink.category,
         collectionId: dbLink.collection_id,
+        isInInbox: dbLink.is_in_inbox || false,
+        highlights: this.parseHighlights(dbLink.highlights),
         createdAt: new Date(dbLink.created_at),
         updatedAt: new Date(dbLink.updated_at),
         domain: dbLink.domain,
@@ -364,6 +389,7 @@ class StorageManager {
       category: dbLink.category,
       collectionId: dbLink.collection_id,
       isInInbox: dbLink.is_in_inbox || false,
+      highlights: this.parseHighlights(dbLink.highlights),
       createdAt: new Date(dbLink.created_at),
       updatedAt: new Date(dbLink.updated_at),
       domain: dbLink.domain,
@@ -555,6 +581,62 @@ class StorageManager {
         autoSummarize: true
       }
     };
+  }
+
+  async getLinkByUrl(url: string): Promise<SavedLink | null> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('links')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('url', url)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      throw error;
+    }
+
+    // Map database fields to TypeScript camelCase
+    return {
+      id: data.id,
+      url: data.url,
+      title: data.title,
+      favicon: data.favicon,
+      userNote: data.user_note || '',
+      aiSummary: data.ai_summary,
+      category: data.category,
+      collectionId: data.collection_id,
+      isInInbox: data.is_in_inbox || false,
+      highlights: this.parseHighlights(data.highlights),
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+      domain: data.domain,
+    };
+  }
+
+  // Helper function to safely parse highlights
+  private parseHighlights(highlightsData: any): any[] {
+    if (!highlightsData) return [];
+    if (typeof highlightsData === 'string') {
+      try {
+        const parsed = JSON.parse(highlightsData);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        console.warn('Failed to parse highlights JSON:', error);
+        return [];
+      }
+    }
+    if (Array.isArray(highlightsData)) return highlightsData;
+    return [];
   }
 }
 

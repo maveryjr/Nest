@@ -3360,4 +3360,266 @@
      }
    }
 
+  /* Highlight Components */
+  .link-highlights-section {
+    margin-top: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    overflow: hidden;
+  }
+
+  .highlights-header {
+    padding: 8px 12px;
+    background: #f3f4f6;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .highlights-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .highlights-toggle:hover {
+    color: #111827;
+  }
+
+  .highlights-toggle svg:first-child {
+    color: #8b5cf6;
+  }
+
+  .highlights-chevron {
+    margin-left: auto;
+    color: #6b7280;
+    transition: transform 0.2s ease;
+  }
+
+  .highlights-chevron.expanded {
+    transform: rotate(180deg);
+  }
+
+  .highlights-list {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .highlight-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .highlight-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .highlight-text {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .highlight-icon {
+    color: #8b5cf6;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .highlight-selected-text {
+    font-style: italic;
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-left: 3px solid #8b5cf6;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .highlight-context {
+    padding-left: 24px;
+  }
+
+  .highlight-context p {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.4;
+    max-height: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .highlight-note {
+    padding-left: 24px;
+  }
+
+  .highlight-note p {
+    font-size: 13px;
+    color: #374151;
+    margin: 0;
+    padding: 8px 12px;
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 4px 4px 0;
+    line-height: 1.4;
+  }
+
+  .highlight-note-form {
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .highlight-note-form textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  .highlight-note-form textarea:focus {
+    outline: none;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 1px #8b5cf6;
+  }
+
+  .highlight-note-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .highlight-note-actions .save-button {
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .highlight-note-actions .save-button:hover {
+    background: #7c3aed;
+  }
+
+  .highlight-note-actions .cancel-button {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .highlight-note-actions .cancel-button:hover {
+    background: #e5e7eb;
+  }
+
+  .highlight-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .highlight-date {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .highlight-buttons {
+    display: flex;
+    gap: 4px;
+  }
+
+  .highlight-action-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 4px;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .highlight-action-button:hover {
+    color: #374151;
+    background: #f3f4f6;
+  }
+
+  .highlight-action-button.delete-button:hover {
+    color: #dc2626;
+    background: #fef2f2;
+  }
+
+  /* Update command palette to include highlight actions */
+  .command-palette-section .command-item[data-action*="highlight"] {
+    --command-icon-color: #8b5cf6;
+  }
+
+  /* Mobile responsive adjustments for highlights */
+  @media (max-width: 768px) {
+    .highlight-card {
+      padding: 10px;
+    }
+    
+    .highlight-selected-text {
+      font-size: 13px;
+      padding: 6px 10px;
+    }
+    
+    .highlight-note p {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+    
+    .highlight-note-form {
+      padding-left: 16px;
+    }
+    
+    .highlight-text {
+      gap: 6px;
+    }
+    
+    .highlight-context {
+      padding-left: 16px;
+    }
+    
+    .highlight-note {
+      padding-left: 16px;
+    }
+  }
+
  

@@ -8,11 +8,26 @@ export interface SavedLink {
   category: string;
   collectionId?: string;
   isInInbox?: boolean;
+  highlights?: Highlight[];
   createdAt: Date;
   updatedAt: Date;
   domain: string;
   searchRank?: number;
   searchHeadline?: string;
+}
+
+export interface Highlight {
+  id: string;
+  selectedText: string;
+  userNote?: string;
+  context?: string; // surrounding text for context
+  position?: {
+    startOffset: number;
+    endOffset: number;
+    xpath?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Collection {

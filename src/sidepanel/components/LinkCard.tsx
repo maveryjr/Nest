@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Edit3, Trash2, FolderPlus, MoreHorizontal, Tag } from 'lucide-react';
-import { SavedLink, Collection } from '../../types';
+import { SavedLink, Collection, Highlight } from '../../types';
 import TagInput from './TagInput';
+import HighlightCard from './HighlightCard';
 import { storage } from '../../utils/storage';
 
 interface LinkTag {
@@ -32,6 +33,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
   const [showMenu, setShowMenu] = useState(false);
   const [showCollections, setShowCollections] = useState(false);
   const [showTagEditor, setShowTagEditor] = useState(false);
+  const [showHighlights, setShowHighlights] = useState(false);
   const [linkTags, setLinkTags] = useState<LinkTag[]>([]);
   const [availableTags, setAvailableTags] = useState<LinkTag[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
@@ -126,6 +128,28 @@ const LinkCard: React.FC<LinkCardProps> = ({
     return colors[Math.abs(hash) % colors.length];
   };
 
+  const handleHighlightNoteAdd = async (highlightId: string, note: string) => {
+    try {
+      const updatedHighlights = (link.highlights || []).map(h => 
+        h.id === highlightId ? { ...h, userNote: note, updatedAt: new Date() } : h
+      );
+      await storage.updateLink(link.id, { highlights: updatedHighlights });
+      onUpdate(link.id, { highlights: updatedHighlights });
+    } catch (error) {
+      console.error('Failed to update highlight note:', error);
+    }
+  };
+
+  const handleHighlightDelete = async (highlightId: string) => {
+    try {
+      const updatedHighlights = (link.highlights || []).filter(h => h.id !== highlightId);
+      await storage.updateLink(link.id, { highlights: updatedHighlights });
+      onUpdate(link.id, { highlights: updatedHighlights });
+    } catch (error) {
+      console.error('Failed to delete highlight:', error);
+    }
+  };
+
   return (
     <div className="link-card">
       <div className="link-header">
@@ -182,6 +206,17 @@ const LinkCard: React.FC<LinkCardProps> = ({
                   <Tag size={14} />
                   Edit tags
                 </button>
+                {link.highlights && link.highlights.length > 0 && (
+                  <button onClick={() => {
+                    setShowHighlights(!showHighlights);
+                    setShowMenu(false);
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                    </svg>
+                    {showHighlights ? 'Hide' : 'Show'} highlights ({link.highlights.length})
+                  </button>
+                )}
                 <button onClick={() => {
                   setShowCollections(!showCollections);
                 }}>
@@ -296,6 +331,46 @@ const LinkCard: React.FC<LinkCardProps> = ({
           {link.category}
         </span>
       </div>
+
+      {/* Highlights Section */}
+      {link.highlights && link.highlights.length > 0 && (
+        <div className="link-highlights-section">
+          <div className="highlights-header">
+            <button 
+              onClick={() => setShowHighlights(!showHighlights)}
+              className="highlights-toggle"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+              </svg>
+              <span>{link.highlights.length} highlight{link.highlights.length !== 1 ? 's' : ''}</span>
+              <svg 
+                width="12" 
+                height="12" 
+                viewBox="0 0 24 24" 
+                className={`highlights-chevron ${showHighlights ? 'expanded' : ''}`}
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          
+          {showHighlights && (
+            <div className="highlights-list">
+              {link.highlights.map((highlight) => (
+                <HighlightCard
+                  key={highlight.id}
+                  highlight={highlight}
+                  onAddNote={handleHighlightNoteAdd}
+                  onDelete={handleHighlightDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -25,7 +25,7 @@ interface CommandPaletteProps {
   onOpenTabSync: () => void;
 }
 
-interface Command {
+interface CommandItem {
   id: string;
   type: 'link' | 'action' | 'collection';
   title: string;
@@ -51,13 +51,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [commands, setCommands] = useState<Command[]>([]);
+  const [commands, setCommands] = useState<CommandItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Generate commands based on links, collections, and actions
   const generateCommands = useCallback((searchQuery: string) => {
-    const allCommands: Command[] = [];
+    const allCommands: CommandItem[] = [];
 
     // Add quick actions
     allCommands.push({
