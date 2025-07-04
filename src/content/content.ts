@@ -3,9 +3,13 @@ console.log('Nest content script loaded');
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Content Script: Message received:', request);
   if (request.action === 'getPageContent') {
     const content = extractPageContent();
+    console.log('Content Script: Sending page content, length:', content.length);
     sendResponse({ content });
+  } else if (request.action === 'showSaveConfirmation') {
+    showSaveConfirmation();
   }
   return true;
 });
@@ -104,11 +108,4 @@ function showSaveConfirmation() {
       }, 300);
     }
   }, 3000);
-}
-
-// Listen for save confirmations from background script
-chrome.runtime.onMessage.addListener((request) => {
-  if (request.action === 'showSaveConfirmation') {
-    showSaveConfirmation();
-  }
-}); 
+} 

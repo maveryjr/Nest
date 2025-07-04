@@ -1,119 +1,97 @@
-import { SavedLink, Collection, Category, StorageData } from '../types';
-
-const DB_NAME = 'NestDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'nestData';
+import { supabase } from './supabase';
+import { SavedLink, Collection, StorageData, Category } from '../types';
 
 class StorageManager {
-  private db: IDBDatabase | null = null;
-
-  async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve();
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
-        }
-      };
-    });
-  }
-
   async getData(): Promise<StorageData> {
-    if (!this.db) await this.init();
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.get('data');
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      console.error('No active session, returning empty data.');
+      return this.getDefaultData();
+    }
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        const defaultData: StorageData = {
-          links: [],
-          collections: [],
-          categories: [
-            { id: 'general', name: 'General', color: '#6b7280', isDefault: true },
-            { id: 'work', name: 'Work', color: '#3b82f6' },
-            { id: 'personal', name: 'Personal', color: '#10b981' },
-            { id: 'learning', name: 'Learning', color: '#f59e0b' }
-          ],
-          settings: {
-            defaultCategory: 'general',
-            autoSummarize: true
-          }
-        };
-        resolve(request.result || defaultData);
-      };
-    });
+    const user = sessionData.session.user;
+    console.log('Fetching data for user:', user.id);
+
+    const [linksRes, collectionsRes] = await Promise.all([
+      supabase.from('links').select('*').eq('user_id', user.id),
+      supabase.from('collections').select('*').eq('user_id', user.id)
+    ]);
+
+    if (linksRes.error) console.error('Error fetching links:', linksRes.error);
+    if (collectionsRes.error) console.error('Error fetching collections:', collectionsRes.error);
+
+    const data: StorageData = {
+      links: (linksRes.data as SavedLink[]) || [],
+      collections: (collectionsRes.data as Collection[]) || [],
+      categories: this.getDefaultCategories(),
+      settings: {
+        defaultCategory: 'general',
+        autoSummarize: true,
+      }
+    };
+
+    console.log('Data fetched from Supabase:', data);
+    return data;
   }
+  
+  async addLink(link: Omit<SavedLink, 'id' | 'createdAt' | 'updatedAt' | 'user_id'>): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) throw new Error('User not logged in.');
 
-  async saveData(data: StorageData): Promise<void> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(data, 'data');
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  }
-
-  async addLink(link: SavedLink): Promise<void> {
-    const data = await this.getData();
-    data.links.push(link);
-    await this.saveData(data);
+    const { error } = await supabase.from('links').insert({ ...link, user_id: user.id });
+    if (error) throw error;
   }
 
   async updateLink(linkId: string, updates: Partial<SavedLink>): Promise<void> {
-    const data = await this.getData();
-    const linkIndex = data.links.findIndex(link => link.id === linkId);
-    if (linkIndex !== -1) {
-      data.links[linkIndex] = { ...data.links[linkIndex], ...updates, updatedAt: new Date() };
-      await this.saveData(data);
-    }
+    const { error } = await supabase.from('links').update({ ...updates, updatedAt: new Date() }).eq('id', linkId);
+    if (error) throw error;
   }
 
   async deleteLink(linkId: string): Promise<void> {
-    const data = await this.getData();
-    data.links = data.links.filter(link => link.id !== linkId);
-    await this.saveData(data);
+    const { error } = await supabase.from('links').delete().eq('id', linkId);
+    if (error) throw error;
   }
 
-  async addCollection(collection: Collection): Promise<void> {
-    const data = await this.getData();
-    data.collections.push(collection);
-    await this.saveData(data);
+  async addCollection(collection: Omit<Collection, 'id' | 'createdAt' | 'updatedAt' | 'user_id'>): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) throw new Error('User not logged in.');
+    
+    const { error } = await supabase.from('collections').insert({ ...collection, user_id: user.id });
+    if (error) throw error;
   }
 
   async updateCollection(collectionId: string, updates: Partial<Collection>): Promise<void> {
-    const data = await this.getData();
-    const collectionIndex = data.collections.findIndex(col => col.id === collectionId);
-    if (collectionIndex !== -1) {
-      data.collections[collectionIndex] = { ...data.collections[collectionIndex], ...updates, updatedAt: new Date() };
-      await this.saveData(data);
-    }
+    const { error } = await supabase.from('collections').update({ ...updates, updatedAt: new Date() }).eq('id', collectionId);
+    if (error) throw error;
   }
 
   async deleteCollection(collectionId: string): Promise<void> {
-    const data = await this.getData();
-    data.collections = data.collections.filter(col => col.id !== collectionId);
-    // Move all links from this collection back to holding area
-    data.links.forEach(link => {
-      if (link.collectionId === collectionId) {
-        link.collectionId = undefined;
+    // We can add logic here to reassign links if needed, for now just delete
+    const { error } = await supabase.from('collections').delete().eq('id', collectionId);
+    if (error) throw error;
+  }
+
+  private getDefaultCategories(): Category[] {
+    return [
+      { id: 'general', name: 'General', color: '#6b7280', isDefault: true },
+      { id: 'work', name: 'Work', color: '#3b82f6' },
+      { id: 'personal', name: 'Personal', color: '#10b981' },
+      { id: 'learning', name: 'Learning', color: '#f59e0b' }
+    ];
+  }
+
+  private getDefaultData(): StorageData {
+    return {
+      links: [],
+      collections: [],
+      categories: this.getDefaultCategories(),
+      settings: {
+        defaultCategory: 'general',
+        autoSummarize: true
       }
-    });
-    await this.saveData(data);
+    };
   }
 }
 

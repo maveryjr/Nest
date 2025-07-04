@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut } from 'lucide-react';
 import { SavedLink, Collection, StorageData } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
 import CollectionCard from './components/CollectionCard';
 import AddNoteModal from './components/AddNoteModal';
 import CreateCollectionModal from './components/CreateCollectionModal';
+import { supabase } from '../utils/supabase';
+import { Session } from '@supabase/supabase-js';
 import './sidepanel.css';
 
 const Sidepanel: React.FC = () => {
@@ -24,6 +26,22 @@ const Sidepanel: React.FC = () => {
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showCreateCollectionModal, setShowCreateCollectionModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -116,6 +134,24 @@ const Sidepanel: React.FC = () => {
     setShowCreateCollectionModal(false);
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    const { error } = await supabase.auth.signInWithOtp({ email });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage('Check your email for the login link!');
+    }
+    setLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   const filteredLinks = data.links.filter(link => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -132,6 +168,36 @@ const Sidepanel: React.FC = () => {
   const getCollectionLinks = (collectionId: string) => 
     filteredLinks.filter(link => link.collectionId === collectionId);
 
+  if (!session) {
+    return (
+      <div className="sidepanel auth-container">
+        <div className="header">
+          <div className="header-title">
+            <Bookmark className="header-icon" />
+            <h1>Nest</h1>
+          </div>
+        </div>
+        <div className="auth-form">
+          <h2>Sign In</h2>
+          <p>Enter your email to receive a magic login link.</p>
+          <form onSubmit={handleLogin}>
+            <input
+              type="email"
+              placeholder="Your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="auth-input"
+            />
+            <button type="submit" className="auth-button" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Magic Link'}
+            </button>
+          </form>
+          {message && <p className="auth-message">{message}</p>}
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="sidepanel loading">
@@ -142,15 +208,20 @@ const Sidepanel: React.FC = () => {
 
   return (
     <div className="sidepanel">
-      {/* Header */}
+      {/* Header with Logout button */}
       <div className="header">
         <div className="header-title">
           <Bookmark className="header-icon" />
           <h1>Nest</h1>
         </div>
-        <button onClick={saveCurrentPage} className="save-button" title="Save current page">
-          <Plus size={18} />
-        </button>
+        <div className="header-actions">
+          <button onClick={saveCurrentPage} className="save-button" title="Save current page">
+            <Plus size={18} />
+          </button>
+          <button onClick={handleLogout} className="logout-button" title="Logout">
+            <LogOut size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Search */}

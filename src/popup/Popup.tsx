@@ -20,9 +20,11 @@ const Popup: React.FC = () => {
   const saveCurrentPage = async () => {
     if (!currentTab) return;
     
+    console.log('Popup: Sending saveCurrentPage message...');
     setIsLoading(true);
     try {
-      await chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
+      const response = await chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
+      console.log('Popup: Received response from background:', response);
       // Show success feedback
       setTimeout(() => {
         window.close();
@@ -35,31 +37,27 @@ const Popup: React.FC = () => {
   };
 
   const openSidepanel = async () => {
+    // Try to open the side panel directly (must be in response to user gesture)
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'openSidePanel' });
-      console.log('Side panel response:', response);
-      if (response.success) {
-        window.close();
-      } else {
-        console.error('Failed to open side panel:', response.error);
-        // Try alternative method
+      if (chrome.sidePanel && chrome.sidePanel.open) {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0]) {
+        if (tabs[0] && tabs[0].windowId) {
           await chrome.sidePanel.open({ windowId: tabs[0].windowId });
           window.close();
+          return;
         }
       }
-    } catch (error) {
-      console.error('Failed to open sidepanel:', error);
-      // Try direct side panel API as fallback
+    } catch (err) {
+      // Fallback to message if direct call fails
       try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0]) {
-          await chrome.sidePanel.open({ windowId: tabs[0].windowId });
+        const response = await chrome.runtime.sendMessage({ action: 'openSidePanel' });
+        if (response?.success) {
           window.close();
+        } else {
+          console.error('Failed to open side panel:', response?.error || 'Unknown error');
         }
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
+      } catch (error) {
+        console.error('Failed to open sidepanel:', error);
       }
     }
   };

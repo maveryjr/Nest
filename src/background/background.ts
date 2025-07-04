@@ -23,60 +23,51 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // Handle browser action clicks (this won't fire if there's a popup, but keeping for reference)
 chrome.action.onClicked.addListener(async (tab) => {
-  try {
-    // Open side panel
-    await chrome.sidePanel.open({ windowId: tab.windowId });
-  } catch (error) {
-    console.error('Failed to open side panel:', error);
-  }
+  // This handler won't fire when a popup is defined in the manifest
+  // The popup will handle opening the side panel instead
+  console.log('Action clicked, but popup should handle this');
 });
 
 // Handle messages from content script and popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  (async () => {
-    try {
-      switch (request.action) {
-        case 'saveCurrentPage':
-          if (sender.tab) {
-            await saveCurrentPage(sender.tab);
-            sendResponse({ success: true });
-          }
-          break;
-        
-        case 'getPageContent':
-          if (sender.tab) {
-            const response = await getPageContent(sender.tab.id!);
-            sendResponse(response);
-          }
-          break;
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  console.log('Background: Message received:', request);
+  try {
+    switch (request.action) {
+      case 'saveCurrentPage':
+        // Query for the active tab instead of relying on sender.tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          await saveCurrentPage(tabs[0]);
+          sendResponse({ success: true });
+        } else {
+          console.error("Background: saveCurrentPage called but no active tab was found.");
+          sendResponse({ success: false, error: 'No active tab found.' });
+        }
+        break;
+      
+      case 'getPageContent':
+        if (sender.tab && sender.tab.id) {
+          const response = await getPageContent(sender.tab.id);
+          sendResponse(response);
+        } else {
+          console.error("Background: getPageContent called but sender.tab.id is missing.");
+          sendResponse({ content: '' });
+        }
+        break;
 
-        case 'openSidePanel':
-          try {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs[0]) {
-              await chrome.sidePanel.open({ windowId: tabs[0].windowId });
-              sendResponse({ success: true });
-            } else {
-              sendResponse({ error: 'No active tab found' });
-            }
-          } catch (error) {
-            console.error('Failed to open side panel:', error);
-            sendResponse({ error: error.message });
-          }
-          break;
-
-        default:
-          sendResponse({ error: 'Unknown action' });
-      }
-    } catch (error) {
-      console.error('Background script error:', error);
-      sendResponse({ error: error.message });
+      default:
+        console.log("Background: Unknown action received:", request.action);
+        sendResponse({ error: 'Unknown action' });
     }
-  })();
+  } catch (error) {
+    console.error('Background script error:', error);
+    sendResponse({ success: false, error: (error as Error).message });
+  }
   return true; // Keep message channel open for async response
 });
 
 async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<void> {
+  console.log('Background: saveCurrentPage started for tab:', tab.id);
   const url = linkUrl || tab.url;
   const title = tab.title || 'Untitled';
   
@@ -86,11 +77,13 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
   }
 
   try {
+    console.log('Background: Getting page content...');
     // Get page content for AI summary
     let pageContent = '';
     try {
       const response = await chrome.tabs.sendMessage(tab.id!, { action: 'getPageContent' });
       pageContent = response?.content || '';
+      console.log('Background: Page content received, length:', pageContent.length);
     } catch (error) {
       console.log('Could not extract page content:', error);
     }
@@ -102,6 +95,7 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
     }
 
+    console.log('Background: Generating AI summary...');
     // Generate AI summary
     const aiSummary = await aiService.generateSummary(pageContent, title, url);
 
@@ -129,8 +123,10 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       updatedAt: new Date()
     };
 
+    console.log('Background: New link object created:', newLink);
     // Save to storage
     await storage.addLink(newLink);
+    console.log('Background: Link saved to storage.');
 
     // Show notification
     chrome.notifications.create({
