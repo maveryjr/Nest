@@ -5,7 +5,7 @@ class StorageManager {
   async getData(): Promise<StorageData> {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError || !sessionData.session) {
-      console.error('No active session, returning empty data.');
+      // No active session, return default empty data.
       return this.getDefaultData();
     }
 

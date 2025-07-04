@@ -32,12 +32,21 @@ const Sidepanel: React.FC = () => {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    // Check for an initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) {
+        loadData();
+      }
     });
 
+    // Listen for authentication state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session);
       setSession(session);
+      if (session) {
+        loadData();
+      }
     });
 
     return () => subscription.unsubscribe();

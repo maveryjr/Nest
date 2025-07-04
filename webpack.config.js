@@ -7,7 +7,8 @@ module.exports = {
     sidepanel: './src/sidepanel/index.tsx',
     popup: './src/popup/index.tsx',
     background: './src/background/background.ts',
-    content: './src/content/content.ts'
+    content: './src/content/content.ts',
+    auth: './src/auth/auth.ts',
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -51,6 +52,11 @@ module.exports = {
       template: './src/popup/popup.html',
       filename: 'popup.html',
       chunks: ['popup']
+    }),
+    new HtmlWebpackPlugin({
+      template: './src/auth/auth.html',
+      filename: 'auth.html',
+      chunks: ['auth']
     }),
     new CopyWebpackPlugin({
       patterns: [
