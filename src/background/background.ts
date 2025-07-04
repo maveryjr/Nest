@@ -29,119 +29,94 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // Handle messages from content script and popup
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background: Message received:', request);
-  try {
-    switch (request.action) {
-      case 'saveCurrentPage':
-        // Query for the active tab instead of relying on sender.tab
+  
+  (async () => {
+    try {
+      if (request.action === 'saveCurrentPage') {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs[0]) {
-          await saveCurrentPage(tabs[0]);
-          sendResponse({ success: true });
+          const result = await saveCurrentPage(tabs[0]);
+          sendResponse(result);
         } else {
-          console.error("Background: saveCurrentPage called but no active tab was found.");
           sendResponse({ success: false, error: 'No active tab found.' });
         }
-        break;
-      
-      case 'getPageContent':
+      } else if (request.action === 'getPageContent') {
         if (sender.tab && sender.tab.id) {
           const response = await getPageContent(sender.tab.id);
           sendResponse(response);
         } else {
-          console.error("Background: getPageContent called but sender.tab.id is missing.");
           sendResponse({ content: '' });
         }
-        break;
-
-      default:
-        console.log("Background: Unknown action received:", request.action);
-        sendResponse({ error: 'Unknown action' });
+      } else {
+        sendResponse({ success: false, error: 'Unknown action' });
+      }
+    } catch (error) {
+      console.error('Background script error:', error);
+      sendResponse({ success: false, error: (error as Error).message });
     }
-  } catch (error) {
-    console.error('Background script error:', error);
-    sendResponse({ success: false, error: (error as Error).message });
-  }
+  })();
+  
   return true; // Keep message channel open for async response
 });
 
-async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<void> {
-  console.log('Background: saveCurrentPage started for tab:', tab.id);
-  const url = linkUrl || tab.url;
-  const title = tab.title || 'Untitled';
-  
-  if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
-    console.log('Cannot save this type of page');
-    return;
-  }
-
+async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log('Background: Getting page content...');
-    // Get page content for AI summary
+    const url = linkUrl || tab.url;
+    const title = tab.title || 'Untitled';
+    
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+      return { success: false, error: 'Cannot save this type of page.' };
+    }
+
     let pageContent = '';
-    try {
-      const response = await chrome.tabs.sendMessage(tab.id!, { action: 'getPageContent' });
-      pageContent = response?.content || '';
-      console.log('Background: Page content received, length:', pageContent.length);
-    } catch (error) {
-      console.log('Could not extract page content:', error);
+    if (tab.id) {
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
+        pageContent = response?.content || '';
+      } catch (error) {
+        console.log('Could not extract page content:', error);
+      }
     }
 
-    // Get favicon
-    let favicon = tab.favIconUrl;
-    if (!favicon) {
-      const domain = new URL(url).hostname;
-      favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-    }
-
-    console.log('Background: Generating AI summary...');
-    // Generate AI summary
+    const domain = new URL(url).hostname;
     const aiSummary = await aiService.generateSummary(pageContent, title, url);
 
-    // Determine category based on domain
-    const domain = new URL(url).hostname;
-    let suggestedCategory = 'general';
-    
-    if (domain.includes('github.com')) {
-      suggestedCategory = 'work';
-    } else if (domain.includes('youtube.com') || domain.includes('medium.com')) {
-      suggestedCategory = 'learning';
-    }
-
-    // Create new link object for insertion
     const newLink = {
       url,
       title,
-      favicon,
+      favicon: tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
       userNote: '',
       aiSummary,
-      category: suggestedCategory,
+      category: 'general',
       domain: domain,
     };
 
-    // Save to storage
-    await storage.addLink(newLink);
+    const result = await storage.addLink(newLink);
 
-    // Show notification
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save link to database.');
+    }
+
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'Saved to Nest',
-      message: `"${title}" has been saved to your Holding Area`
+      message: `"${title}" has been saved.`
     });
 
-    console.log('Page saved successfully:', newLink);
+    return { success: true };
   } catch (error) {
     console.error('Failed to save page:', error);
+    const errorMessage = (error as Error).message || 'An unknown error occurred.';
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'Nest Error',
-      message: `Failed to save page. Error: ${(error as Error).message}`
+      message: `Failed to save page: ${errorMessage}`
     });
-    // Re-throw the error so the message listener can send a failure response
-    throw error;
+    return { success: false, error: errorMessage };
   }
 }
 
