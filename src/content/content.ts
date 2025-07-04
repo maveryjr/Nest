@@ -23,30 +23,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Handle text selection for highlights
 document.addEventListener('mouseup', handleTextSelection);
 document.addEventListener('keyup', handleTextSelection);
+console.log('Nest: Text selection event listeners added');
 
 function handleTextSelection() {
-  const selection = window.getSelection();
-  const selectedText = selection?.toString().trim();
+  console.log('Nest: Text selection event fired');
   
-  if (selectedText && selectedText.length > 10) { // Minimum length for meaningful highlights
-    const range = selection?.getRangeAt(0);
-    if (range) {
-      // Get context around the selection
-      const context = getSelectionContext(range);
-      
-      // Store selection data
-      lastSelection = {
-        text: selectedText,
-        context,
-        position: getSelectionPosition(range)
-      };
-      
-      showHighlightButton(range);
+  // Add a small delay to ensure selection is stable
+  setTimeout(() => {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim();
+    console.log('Nest: Selected text:', selectedText, 'Length:', selectedText?.length);
+    
+    if (selectedText && selectedText.length > 10) { // Minimum length for meaningful highlights
+      console.log('Nest: Text selection meets minimum length requirement');
+      const range = selection?.getRangeAt(0);
+      if (range) {
+        console.log('Nest: Range found, creating highlight button');
+        // Get context around the selection
+        const context = getSelectionContext(range);
+        
+        // Store selection data
+        lastSelection = {
+          text: selectedText,
+          context,
+          position: getSelectionPosition(range)
+        };
+        
+        showHighlightButton(range);
+      }
+    } else {
+      console.log('Nest: Text selection too short or empty, hiding button');
+      hideHighlightButton();
+      lastSelection = null;
     }
-  } else {
-    hideHighlightButton();
-    lastSelection = null;
-  }
+  }, 100); // 100ms delay
 }
 
 function getSelectionContext(range: Range): string {
@@ -72,10 +82,57 @@ function getSelectionPosition(range: Range): any {
 }
 
 function showHighlightButton(range: Range) {
+  console.log('Nest: Creating highlight button');
   hideHighlightButton(); // Remove any existing button
   
   const rect = range.getBoundingClientRect();
+  console.log('Nest: Button position:', rect);
   
+  // Check if rect is valid (has dimensions)
+  if (rect.width === 0 && rect.height === 0) {
+    console.log('Nest: Range rect is empty, trying alternative positioning');
+    
+    // Try to get position from the selection itself without modifying DOM
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      // Try to get position from the start container
+      const startContainer = range.startContainer;
+      let alternativeRect: DOMRect | null = null;
+      
+      if (startContainer.nodeType === Node.TEXT_NODE && startContainer.parentElement) {
+        // If it's a text node, get the parent element's position
+        alternativeRect = startContainer.parentElement.getBoundingClientRect();
+      } else if (startContainer.nodeType === Node.ELEMENT_NODE) {
+        // If it's an element node, get its position
+        alternativeRect = (startContainer as Element).getBoundingClientRect();
+      }
+      
+      console.log('Nest: Alternative positioning:', alternativeRect);
+      
+      if (alternativeRect && alternativeRect.width > 0 && alternativeRect.height > 0) {
+        createButton(alternativeRect);
+        return;
+      }
+    }
+    
+    console.log('Nest: All positioning methods failed, using viewport center fallback');
+    // Use a default position near the center of the viewport
+    const fallbackRect = {
+      bottom: window.innerHeight / 2,
+      left: window.innerWidth / 2,
+      top: window.innerHeight / 2,
+      right: window.innerWidth / 2,
+      width: 0,
+      height: 0
+    };
+    createButton(fallbackRect);
+    return;
+  }
+  
+  createButton(rect);
+}
+
+function createButton(rect: any) {
   highlightButton = document.createElement('div');
   highlightButton.id = 'nest-highlight-button';
   highlightButton.innerHTML = `
@@ -85,47 +142,125 @@ function showHighlightButton(range: Range) {
     Save highlight
   `;
   
+  // Calculate position with better handling of negative coordinates
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+  
+  // Get viewport dimensions
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+  
+  // Calculate raw position
+  let rawTop = (rect.bottom || rect.top || 0);
+  let rawLeft = (rect.left || rect.right || 0);
+  
+  // Handle negative coordinates by using current scroll position as reference
+  if (rawTop < 0) {
+    rawTop = scrollTop + 100; // Position 100px from current scroll position
+  }
+  
+  if (rawLeft < 0) {
+    rawLeft = 50; // Position 50px from left edge
+  }
+  
+  // Final position calculation
+  const buttonTop = rawTop + 10; // Add small offset below selection
+  const buttonLeft = Math.max(10, Math.min(viewportWidth - 200, rawLeft));
+  
+  console.log('Nest: Position calculation:', {
+    rect,
+    scrollTop,
+    scrollLeft,
+    rawTop,
+    rawLeft,
+    buttonTop,
+    buttonLeft,
+    viewportHeight,
+    viewportWidth
+  });
+  
   highlightButton.style.cssText = `
-    position: fixed;
-    top: ${rect.bottom + window.scrollY + 10}px;
-    left: ${rect.left + window.scrollX}px;
-    background: #10b981;
-    color: white;
+    position: absolute;
+    top: ${buttonTop}px;
+    left: ${buttonLeft}px;
+    background: #10b981 !important;
+    color: white !important;
     padding: 8px 12px;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 10000;
+    z-index: 999999 !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: 6px;
     animation: fadeIn 0.2s ease-out;
-    border: none;
+    border: 1px solid #059669 !important;
     text-decoration: none;
+    pointer-events: auto !important;
+    user-select: none;
+    min-width: 140px;
+    opacity: 1 !important;
+    visibility: visible !important;
   `;
   
   // Add animation keyframes
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  `;
-  document.head.appendChild(style);
+  if (!document.getElementById('nest-highlight-styles')) {
+    const style = document.createElement('style');
+    style.id = 'nest-highlight-styles';
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      #nest-highlight-button:hover {
+        background: #059669 !important;
+        transform: translateY(-1px);
+      }
+    `;
+    document.head.appendChild(style);
+  }
   
-  highlightButton.addEventListener('click', saveHighlight);
+  // Add click handler with debug logging
+  const clickHandler = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Nest: Highlight button clicked!');
+    saveHighlight();
+  };
+  
+  highlightButton.addEventListener('click', clickHandler);
+  highlightButton.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    console.log('Nest: Button mousedown');
+  });
+  
   document.body.appendChild(highlightButton);
+  console.log('Nest: Highlight button added to page at position:', buttonTop, buttonLeft);
   
-  // Auto-hide after 5 seconds or when user clicks elsewhere
+  // Force a reflow to ensure the button is rendered
+  highlightButton.offsetHeight;
+  
+  // Check if button is actually visible
+  const buttonRect = highlightButton.getBoundingClientRect();
+  const isVisible = buttonRect.top >= 0 && buttonRect.top <= viewportHeight && 
+                   buttonRect.left >= 0 && buttonRect.left <= viewportWidth;
+  console.log('Nest: Button visibility check:', { buttonRect, isVisible });
+  
+  if (!isVisible) {
+    console.log('Nest: Button is not visible, repositioning to viewport center');
+    highlightButton.style.top = `${scrollTop + viewportHeight / 2}px`;
+    highlightButton.style.left = `${viewportWidth / 2 - 70}px`;
+  }
+  
+  // Auto-hide after 8 seconds (increased from 5)
   setTimeout(() => {
     if (highlightButton) {
       hideHighlightButton();
     }
-  }, 5000);
+  }, 8000);
 }
 
 function hideHighlightButton() {
@@ -136,10 +271,15 @@ function hideHighlightButton() {
 }
 
 function saveHighlight() {
-  if (!lastSelection) return;
+  console.log('Nest: saveHighlight called', lastSelection);
+  if (!lastSelection) {
+    console.log('Nest: No selection data available');
+    return;
+  }
   
   hideHighlightButton();
   
+  console.log('Nest: Sending saveHighlight message to background script');
   // Send message to background script to save highlight
   chrome.runtime.sendMessage({
     action: 'saveHighlight',
@@ -147,6 +287,7 @@ function saveHighlight() {
     context: lastSelection.context,
     position: lastSelection.position
   }, (response) => {
+    console.log('Nest: Received response from background script:', response);
     if (response && response.success) {
       showHighlightConfirmation();
     } else {

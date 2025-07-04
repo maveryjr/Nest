@@ -8,7 +8,7 @@ import {
   Tag,
   Bookmark,
   ArrowRight,
-  Command
+  Command as CommandIcon
 } from 'lucide-react';
 import { SavedLink, Collection } from '../../types';
 
@@ -284,7 +284,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
               className="command-palette-input"
             />
             <div className="command-palette-shortcut">
-              <Command size={12} />
+              <CommandIcon size={12} />
               <span>K</span>
             </div>
           </div>

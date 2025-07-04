@@ -335,6 +335,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
       {/* Highlights Section */}
       {link.highlights && link.highlights.length > 0 && (
         <div className="link-highlights-section">
+          {console.log('LinkCard: Rendering highlights section for link:', link.id, 'with', link.highlights.length, 'highlights')}
           <div className="highlights-header">
             <button 
               onClick={() => setShowHighlights(!showHighlights)}

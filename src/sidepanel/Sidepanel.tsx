@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon } from 'lucide-react';
 import { SavedLink, Collection, StorageData } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
@@ -77,7 +77,23 @@ const Sidepanel: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for messages from background script to refresh data
+    const messageListener = (message: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+      if (message.action === 'refreshSidebar') {
+        console.log('Sidebar: Received refresh request');
+        loadData();
+        loadInboxLinks();
+        loadUserTags();
+        sendResponse({ success: true });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    return () => {
+      subscription.unsubscribe();
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -514,12 +530,13 @@ const Sidepanel: React.FC = () => {
         )}
         {isSearching && <div className="search-spinner">⟳</div>}
         {!searchTerm && !isSearching && (
-          <button 
-            onClick={() => setShowCommandPalette(true)} 
-            className="search-power-mode" 
+          <button
+            onClick={() => setShowCommandPalette(true)}
+            className="command-hint-button"
             title="Open command palette (⌘K)"
           >
-            <Command size={14} />
+            <CommandIcon size={14} />
+            <span>Or press ⌘K for quick access</span>
           </button>
         )}
       </div>

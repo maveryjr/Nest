@@ -23,10 +23,13 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  console.log('Background: Context menu clicked:', info.menuItemId, 'Selection:', info.selectionText);
   if (info.menuItemId === 'saveToNest' && tab) {
     await saveCurrentPage(tab, info.linkUrl);
   } else if (info.menuItemId === 'saveHighlight' && tab && info.selectionText) {
-    await saveHighlight(tab, info.selectionText);
+    console.log('Background: Calling saveHighlight from context menu');
+    // For context menu, we don't have context and position info, so we'll use just the selected text
+    await saveHighlight(tab, info.selectionText, info.selectionText, undefined);
   }
 });
 
@@ -111,7 +114,9 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       isInInbox: true, // New links go to inbox by default
     };
 
+    console.log('Background: saveCurrentPage newLink:', JSON.stringify(newLink));
     const result = await storage.addLink(newLink);
+    console.log('Background: saveCurrentPage result:', result);
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to save link to database.');
@@ -123,6 +128,13 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       title: 'Saved to Nest',
       message: `"${title}" has been saved.`
     });
+
+    // Notify sidebar to refresh data
+    try {
+      await chrome.runtime.sendMessage({ action: 'refreshSidebar' });
+    } catch (error) {
+      console.log('Could not send refresh message to sidebar:', error);
+    }
 
     return { success: true };
   } catch (error) {
@@ -149,6 +161,7 @@ async function getPageContent(tabId: number): Promise<{ content: string }> {
 }
 
 async function saveHighlight(tab: chrome.tabs.Tab, selectedText: string, context?: string, position?: any): Promise<{ success: boolean; error?: string; linkId?: string }> {
+  console.log('Background: saveHighlight called with:', { selectedText, context, position });
   try {
     const url = tab.url;
     const title = tab.title || 'Untitled';
@@ -161,25 +174,31 @@ async function saveHighlight(tab: chrome.tabs.Tab, selectedText: string, context
 
     // Check if we already have a saved link for this URL
     const existingLink = await storage.getLinkByUrl(url);
+    console.log('Background: Existing link found:', !!existingLink);
     
     const highlight: Highlight = {
       id: `highlight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       selectedText,
-      context,
+      context: context || selectedText, // Use selectedText as context if context is not provided
       position,
       createdAt: new Date(),
       updatedAt: new Date()
     };
+
+    console.log('Background: Created highlight:', JSON.stringify(highlight));
 
     let linkId: string;
 
     if (existingLink) {
       // Add highlight to existing link
       const updatedHighlights = [...(existingLink.highlights || []), highlight];
-      await storage.updateLink(existingLink.id, { highlights: updatedHighlights });
+      console.log('Background: Adding highlight to existing link, total highlights:', updatedHighlights.length);
+      const updateResult = await storage.updateLink(existingLink.id, { highlights: updatedHighlights });
+      console.log('Background: updateLink result:', updateResult);
       linkId = existingLink.id;
     } else {
       // Create new link with highlight
+      console.log('Background: Creating new link with highlight');
       const newLink = {
         url,
         title,
@@ -190,13 +209,16 @@ async function saveHighlight(tab: chrome.tabs.Tab, selectedText: string, context
         isInInbox: true,
         highlights: [highlight]
       };
-
+      console.log('Background: newLink with highlight:', JSON.stringify(newLink));
       const result = await storage.addLink(newLink);
+      console.log('Background: addLink result:', result);
       if (!result.success) {
         throw new Error(result.error || 'Failed to save link to database.');
       }
       linkId = result.linkId!;
     }
+
+    console.log('Background: Highlight saved successfully, linkId:', linkId);
 
     chrome.notifications.create({
       type: 'basic',
@@ -204,6 +226,22 @@ async function saveHighlight(tab: chrome.tabs.Tab, selectedText: string, context
       title: 'Highlight Saved',
       message: `Highlight saved from "${title}"`
     });
+
+    // Send confirmation message to content script
+    if (tab.id) {
+      try {
+        chrome.tabs.sendMessage(tab.id, { action: 'showHighlightConfirmation' });
+      } catch (error) {
+        console.log('Could not send confirmation to content script:', error);
+      }
+    }
+
+    // Notify sidebar to refresh data
+    try {
+      await chrome.runtime.sendMessage({ action: 'refreshSidebar' });
+    } catch (error) {
+      console.log('Could not send refresh message to sidebar:', error);
+    }
 
     return { success: true, linkId };
   } catch (error) {

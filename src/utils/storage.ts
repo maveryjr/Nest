@@ -21,21 +21,24 @@ class StorageManager {
     if (collectionsRes.error) console.error('Error fetching collections:', collectionsRes.error);
 
     // Map database fields to TypeScript camelCase
-    const links = (linksRes.data || []).map((dbLink: any) => ({
-      id: dbLink.id,
-      url: dbLink.url,
-      title: dbLink.title,
-      favicon: dbLink.favicon,
-      userNote: dbLink.user_note || '',
-      aiSummary: dbLink.ai_summary,
-      category: dbLink.category,
-      collectionId: dbLink.collection_id,
-      isInInbox: dbLink.is_in_inbox || false,
-      highlights: this.parseHighlights(dbLink.highlights),
-      createdAt: new Date(dbLink.created_at),
-      updatedAt: new Date(dbLink.updated_at),
-      domain: dbLink.domain,
-    }));
+    const links = (linksRes.data || []).map((dbLink: any) => {
+      console.log('Storage: getData highlights for link', dbLink.id, dbLink.highlights);
+      return {
+        id: dbLink.id,
+        url: dbLink.url,
+        title: dbLink.title,
+        favicon: dbLink.favicon,
+        userNote: dbLink.user_note || '',
+        aiSummary: dbLink.ai_summary,
+        category: dbLink.category,
+        collectionId: dbLink.collection_id,
+        isInInbox: dbLink.is_in_inbox || false,
+        highlights: this.parseHighlights(dbLink.highlights),
+        createdAt: new Date(dbLink.created_at),
+        updatedAt: new Date(dbLink.updated_at),
+        domain: dbLink.domain,
+      };
+    });
 
     const collections = (collectionsRes.data || []).map((dbCol: any) => ({
       id: dbCol.id,
@@ -82,7 +85,7 @@ class StorageManager {
       is_in_inbox: link.isInInbox || false,
       highlights: link.highlights ? JSON.stringify(link.highlights) : null,
     };
-
+    console.log('Storage: addLink dbLink.highlights:', dbLink.highlights);
     const { data, error } = await supabase.from('links').insert(dbLink).select('id').single();
     if (error) {
       console.error('Supabase addLink error:', error);
@@ -110,7 +113,7 @@ class StorageManager {
     if (updates.userNote !== undefined) dbUpdates.user_note = updates.userNote;
     if (updates.aiSummary !== undefined) dbUpdates.ai_summary = updates.aiSummary;
     if (updates.isInInbox !== undefined) dbUpdates.is_in_inbox = updates.isInInbox;
-    
+    console.log('Storage: updateLink dbUpdates.highlights:', dbUpdates.highlights);
     const { error } = await supabase.from('links').update(dbUpdates).eq('id', linkId);
     if (error) throw error;
   }
@@ -625,17 +628,26 @@ class StorageManager {
 
   // Helper function to safely parse highlights
   private parseHighlights(highlightsData: any): any[] {
-    if (!highlightsData) return [];
+    if (!highlightsData) {
+      console.log('Storage: No highlights data found');
+      return [];
+    }
     if (typeof highlightsData === 'string') {
       try {
         const parsed = JSON.parse(highlightsData);
-        return Array.isArray(parsed) ? parsed : [];
+        const result = Array.isArray(parsed) ? parsed : [];
+        console.log('Storage: Parsed highlights from JSON:', result.length, 'highlights', result);
+        return result;
       } catch (error) {
         console.warn('Failed to parse highlights JSON:', error);
         return [];
       }
     }
-    if (Array.isArray(highlightsData)) return highlightsData;
+    if (Array.isArray(highlightsData)) {
+      console.log('Storage: Found highlights array:', highlightsData.length, 'highlights', highlightsData);
+      return highlightsData;
+    }
+    console.log('Storage: Highlights data in unexpected format:', typeof highlightsData, highlightsData);
     return [];
   }
 }
