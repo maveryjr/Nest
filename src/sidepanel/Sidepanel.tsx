@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon } from 'lucide-react';
-import { SavedLink, Collection, StorageData } from '../types';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles } from 'lucide-react';
+import { SavedLink, Collection, StorageData, SmartCollection } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
 import CollectionCard from './components/CollectionCard';
+import SmartCollectionCard from './components/SmartCollectionCard';
 import SearchResultCard from './components/SearchResultCard';
 import InboxCard from './components/InboxCard';
 import CommandPalette from './components/CommandPalette';
 import TabSync from './components/TabSync';
 import AddNoteModal from './components/AddNoteModal';
 import CreateCollectionModal from './components/CreateCollectionModal';
+import SavePromptModal from './components/SavePromptModal';
 import TagFilters from './components/TagFilters';
 import SettingsComponent from './components/Settings';
 import { supabase } from '../utils/supabase';
@@ -39,6 +41,7 @@ const Sidepanel: React.FC = () => {
   const [loadingTags, setLoadingTags] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     inbox: true,
+    smartCollections: true,
     holdingArea: true,
     collections: true
   });
@@ -56,6 +59,8 @@ const Sidepanel: React.FC = () => {
   const [loadingInbox, setLoadingInbox] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTabSync, setShowTabSync] = useState(false);
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [currentPageInfo, setCurrentPageInfo] = useState<any>(null);
 
   useEffect(() => {
     // Check for an initial session
@@ -98,7 +103,23 @@ const Sidepanel: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    checkForNewTabSearch();
   }, []);
+
+  // Check for search query from new tab
+  const checkForNewTabSearch = async () => {
+    try {
+      const result = await chrome.storage.local.get('nest_search_query');
+      if (result.nest_search_query) {
+        setSearchTerm(result.nest_search_query);
+        debouncedSearch(result.nest_search_query);
+        // Clear the stored search query
+        await chrome.storage.local.remove('nest_search_query');
+      }
+    } catch (error) {
+      console.error('Failed to check for new tab search:', error);
+    }
+  };
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -197,11 +218,29 @@ const Sidepanel: React.FC = () => {
 
   const saveCurrentPage = async () => {
     try {
+      // Get current page info first
+      const pageInfoResponse = await chrome.runtime.sendMessage({ action: 'getPageInfo' });
+      if (pageInfoResponse.success) {
+        setCurrentPageInfo(pageInfoResponse.pageInfo);
+        setShowSavePrompt(true);
+      } else {
+        // Fallback to direct save if we can't get page info
+        await saveDirectly();
+      }
+    } catch (error) {
+      console.error('Failed to get page info:', error);
+      // Fallback to direct save
+      await saveDirectly();
+    }
+  };
+
+  const saveDirectly = async () => {
+    try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tabs[0]) {
         await chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
-        await loadData(); // Refresh data
-        await loadUserTags(); // Refresh tags
+        await loadData();
+        await loadUserTags();
       }
     } catch (error) {
       console.error('Failed to save page:', error);
@@ -211,6 +250,14 @@ const Sidepanel: React.FC = () => {
   const handleUpdateLink = async (linkId: string, updates: Partial<SavedLink>) => {
     try {
       await storage.updateLink(linkId, updates);
+      
+      // Log organize activity if moving between collections
+      if (updates.collectionId !== undefined) {
+        await storage.logActivity('organize', linkId, updates.collectionId, {
+          action: 'move_to_collection'
+        });
+      }
+      
       await loadData();
     } catch (error) {
       console.error('Failed to update link:', error);
@@ -275,6 +322,12 @@ const Sidepanel: React.FC = () => {
   const handleMoveFromInbox = async (linkId: string, collectionId?: string) => {
     try {
       await storage.moveFromInbox(linkId, collectionId);
+      
+      // Log organize activity
+      await storage.logActivity('organize', linkId, collectionId, {
+        action: 'move_from_inbox'
+      });
+      
       await loadInboxLinks();
       await loadData();
       setSelectedInboxLinks(prev => prev.filter(id => id !== linkId));
@@ -377,6 +430,39 @@ const Sidepanel: React.FC = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  // Save prompt handlers
+  const handleSaveWithContext = async (reason: string, tags?: string[]) => {
+    try {
+      const response = await chrome.runtime.sendMessage({ 
+        action: 'saveWithContext', 
+        reason, 
+        tags 
+      });
+      
+      if (response.success) {
+        await loadData();
+        await loadUserTags();
+        setShowSavePrompt(false);
+        setCurrentPageInfo(null);
+      } else {
+        console.error('Failed to save with context:', response.error);
+      }
+    } catch (error) {
+      console.error('Failed to save with context:', error);
+    }
+  };
+
+  const handleSkipSavePrompt = async () => {
+    setShowSavePrompt(false);
+    setCurrentPageInfo(null);
+    await saveDirectly();
+  };
+
+  const handleCloseSavePrompt = () => {
+    setShowSavePrompt(false);
+    setCurrentPageInfo(null);
   };
 
   // Debounced search function
@@ -705,6 +791,37 @@ const Sidepanel: React.FC = () => {
               )}
             </div>
 
+            {/* Smart Collections */}
+            {data.settings.enableSmartCollections && data.smartCollections && data.smartCollections.length > 0 && (
+              <div className="section smart-collections-section">
+                <button
+                  onClick={() => toggleSection('smartCollections')}
+                  className="section-header"
+                >
+                  {expandedSections.smartCollections ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <Sparkles size={16} />
+                  <span>Smart Collections</span>
+                  <span className="count">{data.smartCollections.length}</span>
+                </button>
+                
+                {expandedSections.smartCollections && (
+                  <div className="section-content">
+                    {data.smartCollections.map(smartCollection => (
+                      <SmartCollectionCard
+                        key={smartCollection.id}
+                        smartCollection={smartCollection}
+                        collections={data.collections}
+                        onUpdateLink={handleUpdateLink}
+                        onDeleteLink={handleDeleteLink}
+                        onAddNote={handleAddNote}
+                        onTagsUpdated={handleTagsUpdated}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Holding Area */}
             <div className="section">
               <button
@@ -859,6 +976,16 @@ const Sidepanel: React.FC = () => {
         onClose={() => setShowTabSync(false)}
         collections={data.collections}
         onSaveTabs={handleSaveTabs}
+      />
+
+      {/* Save Prompt Modal */}
+      <SavePromptModal
+        isOpen={showSavePrompt}
+        onSave={handleSaveWithContext}
+        onSkip={handleSkipSavePrompt}
+        onClose={handleCloseSavePrompt}
+        linkTitle={currentPageInfo?.title}
+        linkUrl={currentPageInfo?.url}
       />
     </div>
   );

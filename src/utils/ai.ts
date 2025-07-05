@@ -466,6 +466,332 @@ Content: ${content.substring(0, 1000)}...`;
   updateApiKey(apiKey: string): void {
     this.apiKey = apiKey;
   }
+
+  /**
+   * Generate smart collection queries based on user's link patterns
+   */
+  async generateSmartCollectionSuggestions(links: SavedLink[]): Promise<SmartCollection[]> {
+    // Analyze user's link patterns to suggest smart collections
+    const domainAnalysis = this.analyzeDomains(links);
+    const topicAnalysis = this.analyzeTopics(links);
+    const timeAnalysis = this.analyzeTimePatterns(links);
+    
+    const suggestions: SmartCollection[] = [];
+    const now = new Date();
+
+    // Domain-based collections
+    for (const [domain, count] of Object.entries(domainAnalysis)) {
+      if (count >= 3) { // Minimum threshold for suggesting domain collection
+        suggestions.push({
+          id: `domain-${domain.replace(/\./g, '-')}`,
+          name: `📌 ${this.getDomainDisplayName(domain)}`,
+          description: `Links from ${domain} (${count} links)`,
+          query: `domain LIKE '%${domain}%'`,
+          isSystem: true,
+          autoUpdate: true,
+          icon: this.getDomainIcon(domain),
+          color: this.getDomainColor(domain),
+          filters: {
+            domains: [domain]
+          },
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+    }
+
+    // Topic-based collections
+    for (const [topic, count] of Object.entries(topicAnalysis)) {
+      if (count >= 2) {
+        suggestions.push({
+          id: `topic-${topic.toLowerCase().replace(/\s+/g, '-')}`,
+          name: `🎯 ${topic}`,
+          description: `Content related to ${topic.toLowerCase()} (${count} links)`,
+          query: `title ILIKE '%${topic}%' OR user_note ILIKE '%${topic}%' OR ai_summary ILIKE '%${topic}%'`,
+          isSystem: true,
+          autoUpdate: true,
+          icon: this.getTopicIcon(topic),
+          color: this.getTopicColor(topic),
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+    }
+
+    // Time-based collections
+    if (timeAnalysis.recentActivity > 5) {
+      suggestions.push({
+        id: 'recent-activity',
+        name: '🔥 Recent Activity',
+        description: 'Links saved in the last 3 days',
+        query: 'created_at >= now() - interval \'3 days\'',
+        isSystem: true,
+        autoUpdate: true,
+        icon: '🔥',
+        color: '#ef4444',
+        filters: {
+          dateRange: {
+            start: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+          }
+        },
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    return suggestions.slice(0, 8); // Limit suggestions
+  }
+
+  /**
+   * Analyze domains in user's links
+   */
+  private analyzeDomains(links: SavedLink[]): Record<string, number> {
+    const domainCounts: Record<string, number> = {};
+    
+    links.forEach(link => {
+      const domain = link.domain;
+      domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    });
+
+    // Sort by count and return top domains
+    return Object.fromEntries(
+      Object.entries(domainCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+    );
+  }
+
+  /**
+   * Analyze topics in user's links
+   */
+  private analyzeTopics(links: SavedLink[]): Record<string, number> {
+    const topicCounts: Record<string, number> = {};
+    const commonTopics = [
+      'React', 'JavaScript', 'TypeScript', 'Python', 'Node.js', 'API', 'Database',
+      'Machine Learning', 'AI', 'Design', 'UI/UX', 'CSS', 'HTML', 'Backend',
+      'Frontend', 'DevOps', 'Cloud', 'AWS', 'Docker', 'Kubernetes', 'Git',
+      'Testing', 'Security', 'Performance', 'Mobile', 'iOS', 'Android',
+      'Tutorial', 'Guide', 'Documentation', 'Tool', 'Framework', 'Library'
+    ];
+
+    links.forEach(link => {
+      const content = `${link.title} ${link.userNote} ${link.aiSummary || ''}`.toLowerCase();
+      
+      commonTopics.forEach(topic => {
+        if (content.includes(topic.toLowerCase())) {
+          topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+        }
+      });
+    });
+
+    return Object.fromEntries(
+      Object.entries(topicCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 8)
+    );
+  }
+
+  /**
+   * Analyze time patterns in user's links
+   */
+  private analyzeTimePatterns(links: SavedLink[]): { recentActivity: number; weeklyPattern: Record<string, number> } {
+    const now = new Date();
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+    
+    const recentActivity = links.filter(link => link.createdAt >= threeDaysAgo).length;
+    
+    const weeklyPattern: Record<string, number> = {};
+    links.forEach(link => {
+      const dayOfWeek = link.createdAt.toLocaleDateString('en-US', { weekday: 'long' });
+      weeklyPattern[dayOfWeek] = (weeklyPattern[dayOfWeek] || 0) + 1;
+    });
+
+    return { recentActivity, weeklyPattern };
+  }
+
+  /**
+   * Get display name for domain
+   */
+  private getDomainDisplayName(domain: string): string {
+    const displayNames: Record<string, string> = {
+      'github.com': 'GitHub',
+      'stackoverflow.com': 'Stack Overflow',
+      'medium.com': 'Medium',
+      'youtube.com': 'YouTube',
+      'twitter.com': 'Twitter',
+      'linkedin.com': 'LinkedIn',
+      'reddit.com': 'Reddit',
+      'dev.to': 'Dev.to',
+      'hashnode.com': 'Hashnode',
+      'docs.google.com': 'Google Docs'
+    };
+    
+    return displayNames[domain] || domain.replace('www.', '').split('.')[0];
+  }
+
+  /**
+   * Get icon for domain
+   */
+  private getDomainIcon(domain: string): string {
+    const icons: Record<string, string> = {
+      'github.com': '⭐',
+      'stackoverflow.com': '💬',
+      'medium.com': '✍️',
+      'youtube.com': '📺',
+      'twitter.com': '🐦',
+      'linkedin.com': '💼',
+      'reddit.com': '🤖',
+      'dev.to': '👨‍💻',
+      'hashnode.com': '📝',
+      'docs.google.com': '📄'
+    };
+    
+    return icons[domain] || '🌐';
+  }
+
+  /**
+   * Get color for domain
+   */
+  private getDomainColor(domain: string): string {
+    const colors: Record<string, string> = {
+      'github.com': '#24292e',
+      'stackoverflow.com': '#f48024',
+      'medium.com': '#00ab6c',
+      'youtube.com': '#ff0000',
+      'twitter.com': '#1da1f2',
+      'linkedin.com': '#0077b5',
+      'reddit.com': '#ff4500',
+      'dev.to': '#0a0a0a',
+      'hashnode.com': '#2962ff',
+      'docs.google.com': '#4285f4'
+    };
+    
+    return colors[domain] || '#6b7280';
+  }
+
+  /**
+   * Get icon for topic
+   */
+  private getTopicIcon(topic: string): string {
+    const icons: Record<string, string> = {
+      'React': '⚛️',
+      'JavaScript': '🟨',
+      'TypeScript': '🔷',
+      'Python': '🐍',
+      'Node.js': '🟢',
+      'API': '🔌',
+      'Database': '🗄️',
+      'Machine Learning': '🤖',
+      'AI': '🧠',
+      'Design': '🎨',
+      'UI/UX': '✨',
+      'CSS': '🎨',
+      'HTML': '📄',
+      'Backend': '⚙️',
+      'Frontend': '🖥️',
+      'DevOps': '🔧',
+      'Cloud': '☁️',
+      'AWS': '🟠',
+      'Docker': '🐳',
+      'Security': '🔒',
+      'Mobile': '📱',
+      'Tutorial': '📚',
+      'Tool': '🛠️'
+    };
+    
+    return icons[topic] || '🏷️';
+  }
+
+  /**
+   * Get color for topic
+   */
+  private getTopicColor(topic: string): string {
+    const colors: Record<string, string> = {
+      'React': '#61dafb',
+      'JavaScript': '#f7df1e',
+      'TypeScript': '#3178c6',
+      'Python': '#3776ab',
+      'Node.js': '#339933',
+      'API': '#ff6b6b',
+      'Database': '#336791',
+      'Machine Learning': '#ff9500',
+      'AI': '#8b5cf6',
+      'Design': '#e91e63',
+      'UI/UX': '#9c27b0',
+      'CSS': '#1572b6',
+      'HTML': '#e34f26',
+      'Backend': '#4caf50',
+      'Frontend': '#2196f3',
+      'DevOps': '#ff5722',
+      'Cloud': '#607d8b',
+      'Security': '#795548',
+      'Mobile': '#00bcd4',
+      'Tutorial': '#ff9800',
+      'Tool': '#607d8b'
+    };
+    
+    return colors[topic] || '#6b7280';
+  }
+
+  /**
+   * Enhanced content analysis for smart collection matching
+   */
+  async analyzeForSmartCollections(link: SavedLink): Promise<{
+    matchingCollections: string[];
+    suggestedTags: string[];
+    contentSignals: Record<string, number>;
+  }> {
+    const content = `${link.title} ${link.userNote} ${link.aiSummary || ''}`.toLowerCase();
+    const domain = link.domain;
+    
+    const matchingCollections: string[] = [];
+    const suggestedTags: string[] = [];
+    const contentSignals: Record<string, number> = {};
+
+    // Check for AI/ML content
+    const aiKeywords = ['ai', 'artificial intelligence', 'machine learning', 'ml', 'neural', 'deep learning'];
+    const aiScore = aiKeywords.filter(keyword => content.includes(keyword)).length;
+    if (aiScore > 0) {
+      matchingCollections.push('ai-related');
+      suggestedTags.push('AI');
+      contentSignals.ai = aiScore;
+    }
+
+    // Check for tutorial content
+    const tutorialKeywords = ['tutorial', 'how to', 'guide', 'walkthrough', 'step by step'];
+    const tutorialScore = tutorialKeywords.filter(keyword => content.includes(keyword)).length;
+    if (tutorialScore > 0) {
+      matchingCollections.push('tutorials');
+      suggestedTags.push('tutorial');
+      contentSignals.tutorial = tutorialScore;
+    }
+
+    // Check for GitHub repositories
+    if (domain.includes('github.com')) {
+      matchingCollections.push('github-repos');
+      suggestedTags.push('github', 'repository');
+      contentSignals.github = 1;
+    }
+
+    // Check for recent content (last 7 days)
+    const daysSinceCreated = (Date.now() - link.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceCreated <= 7) {
+      matchingCollections.push('recent-reads');
+      contentSignals.recent = Math.max(0, 7 - daysSinceCreated) / 7;
+    }
+
+    // Check for unread content (no user notes)
+    if (!link.userNote || link.userNote.trim() === '') {
+      matchingCollections.push('unread');
+      contentSignals.unread = 1;
+    }
+
+    return {
+      matchingCollections,
+      suggestedTags,
+      contentSignals
+    };
+  }
 }
 
 export const aiService = new AIService(); 

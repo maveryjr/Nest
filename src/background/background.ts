@@ -77,6 +77,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         } else {
           sendResponse({ success: false, error: 'No active tab found.' });
         }
+      } else if (request.action === 'saveWithContext') {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          const result = await saveWithContext(tabs[0], request.reason, request.tags);
+          sendResponse(result);
+        } else {
+          sendResponse({ success: false, error: 'No active tab found.' });
+        }
+      } else if (request.action === 'getPageInfo') {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+          const result = await getPageInfo(tabs[0]);
+          sendResponse(result);
+        } else {
+          sendResponse({ success: false, error: 'No active tab found.' });
+        }
       } else {
         sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -132,6 +148,15 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to save link to database.');
+    }
+
+    // Log activity for tracking
+    if (result.linkId) {
+      await storage.logActivity('save', result.linkId, undefined, {
+        domain,
+        category: newLink.category,
+        hasAISummary: !!aiAnalysis.summary
+      });
     }
 
     chrome.notifications.create({
@@ -288,6 +313,113 @@ async function getPageContent(tabId: number): Promise<{ content: string }> {
   } catch (error) {
     console.log('Could not get page content:', error);
     return { content: '' };
+  }
+}
+
+async function getPageInfo(tab: chrome.tabs.Tab): Promise<{ success: boolean; pageInfo?: any; error?: string }> {
+  try {
+    const url = tab.url;
+    const title = tab.title || 'Untitled';
+    
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+      return { success: false, error: 'Cannot get info for this type of page.' };
+    }
+
+    return { 
+      success: true, 
+      pageInfo: {
+        title,
+        url,
+        domain: new URL(url).hostname,
+        favicon: tab.favIconUrl
+      }
+    };
+  } catch (error) {
+    console.error('Failed to get page info:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+async function saveWithContext(tab: chrome.tabs.Tab, reason: string, tags: string[] = []): Promise<{ success: boolean; error?: string; linkId?: string }> {
+  try {
+    const url = tab.url;
+    const title = tab.title || 'Untitled';
+    
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+      return { success: false, error: 'Cannot save this type of page.' };
+    }
+
+    let pageContent = '';
+    if (tab.id) {
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
+        pageContent = response?.content || '';
+      } catch (error) {
+        console.log('Could not extract page content:', error);
+      }
+    }
+
+    const domain = new URL(url).hostname;
+    
+    // Perform AI analysis
+    const aiAnalysis = await aiService.analyzeContent(pageContent, title, url);
+
+    const newLink = {
+      url,
+      title,
+      favicon: tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+      userNote: reason, // Store the reason as a user note
+      aiSummary: aiAnalysis.summary,
+      category: aiAnalysis.categorySuggestions[0]?.category || 'general',
+      domain: domain,
+      isInInbox: true,
+    };
+
+    const result = await storage.addLink(newLink);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save link to database.');
+    }
+
+    // Add tags if provided
+    if (tags.length > 0 && result.linkId) {
+      try {
+        await storage.addTagsToLink(result.linkId, tags);
+      } catch (error) {
+        console.error('Failed to add tags:', error);
+        // Don't fail the whole operation if tags fail
+      }
+    }
+
+    // Log activity for tracking
+    if (result.linkId) {
+      await storage.logActivity('save', result.linkId, undefined, {
+        domain,
+        category: newLink.category,
+        reason: reason.substring(0, 100), // Truncate for storage
+        tags: tags,
+        withContext: true
+      });
+    }
+
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Saved to Nest',
+      message: `"${title}" saved with context: ${reason.substring(0, 50)}...`
+    });
+
+    // Notify sidebar to refresh data
+    try {
+      await chrome.runtime.sendMessage({ action: 'refreshSidebar' });
+    } catch (error) {
+      console.log('Could not send refresh message to sidebar:', error);
+    }
+
+    return { success: true, linkId: result.linkId };
+  } catch (error) {
+    console.error('Failed to save with context:', error);
+    return { success: false, error: (error as Error).message };
   }
 }
 

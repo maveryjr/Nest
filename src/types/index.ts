@@ -75,6 +75,7 @@ export interface Category {
 export interface StorageData {
   links: SavedLink[];
   collections: Collection[];
+  smartCollections: SmartCollection[];
   categories: Category[];
   settings: {
     openaiApiKey?: string;
@@ -82,6 +83,8 @@ export interface StorageData {
     autoSummarize: boolean;
     autoTagging?: boolean;
     autoCategorization?: boolean;
+    enableSmartCollections?: boolean;
+    enableActivityTracking?: boolean;
   };
 }
 
@@ -108,6 +111,25 @@ export interface AIAnalysisResult {
   readingTime?: number; // Estimated reading time in minutes
 }
 
+// Activity tracking types for future features
+export interface ActivityEvent {
+  id: string;
+  type: 'save' | 'read' | 'highlight' | 'organize' | 'search';
+  linkId?: string;
+  collectionId?: string;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface UserStreak {
+  id: string;
+  type: 'daily_save' | 'weekly_organize' | 'reading_streak';
+  currentCount: number;
+  bestCount: number;
+  lastActivityAt: Date;
+  createdAt: Date;
+}
+
 export interface SmartCollection {
   id: string;
   name: string;
@@ -129,4 +151,45 @@ export interface SmartCollection {
   };
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface DigestPreferences {
+  enabled: boolean;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  time: string; // HH:MM format
+  timezone: string;
+  includeStats: boolean;
+  includeRecentSaves: boolean;
+  includePopularLinks: boolean;
+  includeSmartCollections: boolean;
+  includeActivitySummary: boolean;
+  maxLinksPerSection: number;
+}
+
+export interface DigestContent {
+  id: string;
+  userId: string;
+  generatedAt: Date;
+  period: {
+    start: Date;
+    end: Date;
+  };
+  stats: {
+    linksSaved: number;
+    linksRead: number;
+    collectionsCreated: number;
+    tagsUsed: number;
+    currentStreak: number;
+  };
+  sections: DigestSection[];
+  aiInsights?: string;
+  sent: boolean;
+  sentAt?: Date;
+}
+
+export interface DigestSection {
+  type: 'recent_saves' | 'popular_links' | 'smart_collections' | 'activity_summary' | 'recommendations';
+  title: string;
+  content: any[];
+  aiSummary?: string;
 } 

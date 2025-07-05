@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { storage } from '../../utils/storage';
 import { supabase } from '../../utils/supabase';
+import DigestSettings from './DigestSettings';
 
 interface SettingsProps {
   onClose: () => void;
@@ -38,7 +39,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     darkMode: false,
     autoTagging: false,
     autoCategorization: false,
-    openaiApiKey: ''
+    openaiApiKey: '',
+    newTabEnabled: true
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,6 +66,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const loadSettings = async () => {
     try {
       const data = await storage.getData();
+      const result = await chrome.storage.local.get('nest_newtab_enabled');
       setSettings({
         autoSummarize: data.settings.autoSummarize,
         defaultCategory: data.settings.defaultCategory,
@@ -73,7 +76,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         darkMode: false,
         autoTagging: data.settings.autoTagging,
         autoCategorization: data.settings.autoCategorization,
-        openaiApiKey: data.settings.openaiApiKey
+        openaiApiKey: data.settings.openaiApiKey,
+        newTabEnabled: result.nest_newtab_enabled !== false
       });
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -113,7 +117,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     setMessage('');
 
     try {
-      // Here you would save settings to your backend/storage
+      // Save new tab setting to Chrome storage
+      if (newSettings.newTabEnabled !== settings.newTabEnabled) {
+        await chrome.storage.local.set({ 'nest_newtab_enabled': newSettings.newTabEnabled });
+      }
+      
+      // Here you would save other settings to your backend/storage
       // For now, we'll just update local state
       setSettings(newSettings);
       setMessage('Settings saved successfully!');
@@ -179,6 +188,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
     { id: 'preferences', label: 'Preferences', icon: Palette },
+    { id: 'digest', label: 'Daily Digest', icon: Mail },
     { id: 'data', label: 'Data', icon: Database },
     { id: 'sharing', label: 'Sharing', icon: Share2 },
     { id: 'about', label: 'About', icon: Info }
@@ -331,6 +341,24 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                         <span className="toggle-slider"></span>
                         </label>
                     </div>
+                    <div className="setting-item">
+                        <div className="setting-info">
+                            <div>
+                                <div className="setting-label">New Tab Home</div>
+                                <div className="setting-description">Replace new tab page with Nest home interface</div>
+                            </div>
+                        </div>
+                        <label className="toggle-switch">
+                        <input
+                            type="checkbox"
+                            checked={settings.newTabEnabled}
+                            onChange={(e) => saveSettings({ ...settings, newTabEnabled: e.target.checked })}
+                            disabled={saving}
+                            aria-label="New Tab Home"
+                        />
+                        <span className="toggle-slider"></span>
+                        </label>
+                    </div>
                 </div>
                 <h3 style={{marginTop: 'var(--space-5)'}}>Advanced</h3>
                 <div className="setting-group">
@@ -352,6 +380,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                         />
                     </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'digest' && (
+              <div className="settings-section">
+                <DigestSettings />
               </div>
             )}
 
