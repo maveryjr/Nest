@@ -117,7 +117,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: var(--ui-element-background);
   border-bottom: 1px solid var(--ui-border);
   position: sticky;
@@ -147,7 +147,7 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .save-button,
@@ -156,8 +156,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -192,7 +192,7 @@ body {
 
 /* Enhanced Search Design */
 .search-container {
-  padding: var(--space-4);
+  padding: var(--space-3);
   background: var(--ui-element-background);
   border-bottom: 1px solid var(--ui-border);
 }
@@ -205,21 +205,21 @@ body {
 
 .search-icon {
   position: absolute;
-  left: var(--space-3);
+  left: var(--space-2);
   color: var(--ui-text-tertiary);
   pointer-events: none;
   z-index: 1;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .search-input {
   width: 100%;
-  height: 44px;
-  padding: 0 var(--space-3) 0 40px;
+  height: 36px;
+  padding: 0 var(--space-3) 0 36px;
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   background: var(--ui-background);
   color: var(--ui-text-primary);
   transition: all var(--transition-base);
@@ -264,25 +264,25 @@ body {
 
 .command-hint-button {
   position: absolute;
-  right: var(--space-3);
+  right: var(--space-2);
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  background-color: var(--color-gray-100);
-  color: var(--ui-text-secondary);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-md);
+  gap: var(--space-1);
+  background-color: transparent;
+  color: var(--ui-text-tertiary);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   cursor: pointer;
-  border: 1px solid var(--ui-border);
+  border: none;
   transition: all var(--transition-fast);
 }
 
 .command-hint-button:hover {
-    background-color: var(--color-gray-200);
-    color: var(--ui-text-primary);
+    background-color: var(--color-gray-100);
+    color: var(--ui-text-secondary);
 }
 
 @keyframes spin {
@@ -819,20 +819,20 @@ input:checked + .toggle-slider:before {
   }
   
   .header {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
   }
   
   .search-container {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
   }
   
   .content {
-    padding: 0 var(--space-4) var(--space-4);
+    padding: var(--space-2);
   }
   
   .inbox-card-content,
   .link-card {
-    padding: var(--space-4);
+    padding: var(--space-3);
   }
   
   .inbox-card-favicon,
@@ -857,7 +857,7 @@ input:checked + .toggle-slider:before {
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-4);
+  padding: var(--space-2) var(--space-3);
   scroll-behavior: smooth;
 }
 
@@ -880,7 +880,7 @@ input:checked + .toggle-slider:before {
 
 /* Section Headers */
 .section {
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-3);
 }
 
 .section-header {
@@ -933,7 +933,7 @@ input:checked + .toggle-slider:before {
 }
 
 .section-content {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 /* Modern Card Design Foundation */
@@ -941,8 +941,8 @@ input:checked + .toggle-slider:before {
   background: var(--ui-element-background);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
   transition: all var(--transition-base);
   position: relative;
 }
@@ -1211,8 +1211,8 @@ input:checked + .toggle-slider:before {
 .inbox-card {
   background: var(--ui-element-background);
   border: 1px solid var(--ui-border);
-  border-radius: var(--radius-xl);
-  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-2);
   transition: all var(--transition-base);
   position: relative;
   box-shadow: var(--shadow-sm);
@@ -1232,9 +1232,9 @@ input:checked + .toggle-slider:before {
 }
 
 .inbox-card-content {
-  padding: var(--space-4);
+  padding: var(--space-3);
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .inbox-card-checkbox {
@@ -1968,11 +1968,11 @@ input:checked + .toggle-slider:before {
 .tag-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3);
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--ui-element-background);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border: 1px solid var(--ui-border);
 }
 
@@ -2203,11 +2203,12 @@ input:checked + .toggle-slider:before {
    ========================================================================== */
 
 .ai-suggestions {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-4);
+  background: var(--ui-element-background);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   animation: ai-suggestions-appear 0.3s ease-out;
 }
 
@@ -2225,10 +2226,9 @@ input:checked + .toggle-slider:before {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  background: rgba(255, 255, 255, 0.1);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .ai-suggestions.loading .ai-suggestions-header {
@@ -2241,7 +2241,7 @@ input:checked + .toggle-slider:before {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-white);
+  color: var(--ui-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
@@ -2306,7 +2306,7 @@ input:checked + .toggle-slider:before {
 }
 
 .ai-suggestions-content {
-  padding: var(--space-4);
+  padding: var(--space-3);
   background: var(--ui-element-background);
 }
 
