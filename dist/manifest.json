@@ -37,9 +37,7 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "chrome_url_overrides": {
-    "newtab": "newtab.html"
-  },
+
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -48,7 +46,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["sidepanel.html", "auth.html"],
+      "resources": ["sidepanel.html", "auth.html", "maximize.html"],
       "matches": ["http://*/*", "https://*/*"]
     }
   ],

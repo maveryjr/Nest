@@ -6,7 +6,6 @@ module.exports = {
   entry: {
     sidepanel: './src/sidepanel/index.tsx',
     popup: './src/popup/index.tsx',
-    newtab: './src/newtab/index.tsx',
     background: './src/background/background.ts',
     content: './src/content/content.ts',
     auth: './src/auth/auth.ts',
@@ -58,11 +57,6 @@ module.exports = {
       template: './src/auth/auth.html',
       filename: 'auth.html',
       chunks: ['auth']
-    }),
-    new HtmlWebpackPlugin({
-      template: './newtab.html',
-      filename: 'newtab.html',
-      chunks: ['newtab']
     }),
     new CopyWebpackPlugin({
       patterns: [

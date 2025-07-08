@@ -50,7 +50,6 @@
 - **Accessibility**: WCAG compliant with screen reader support
 
 ### 🔧 Advanced Features
-- **New Tab Integration**: Replace Chrome's new tab with your knowledge hub
 - **Floating Window**: Raycast-like popup window for quick access
 - **Tab Sync**: Save multiple tabs at once to collections
 - **Export/Import**: Backup and restore your data
@@ -101,8 +100,8 @@
 
 ### Access Your Saved Content
 - **Sidepanel**: Click the Nest icon to open the sidepanel
-- **New Tab**: Enable "Replace New Tab" in settings
 - **Floating Window**: Use command palette or settings to open floating window
+- **Maximize View**: Click the maximize button for full-screen interface
 
 ### Use the AI Assistant
 1. Press `Alt+A` (or `Cmd+A` on Mac) on any webpage
@@ -209,7 +208,7 @@ The floating AI assistant provides context-aware help on any webpage:
 - `storage`: Save your bookmarks and settings
 - `activeTab`: Read page content for saving and AI features
 - `contextMenus`: Add right-click menu options
-- `tabs`: Manage tab operations and new tab replacement
+- `tabs`: Manage tab operations
 - `sidePanel`: Display the extension sidepanel
 
 ## 🛠️ Development
@@ -221,7 +220,7 @@ nest-extension/
 │   ├── background/       # Service worker and background scripts
 │   ├── content/          # Content scripts for web page interaction
 │   ├── sidepanel/        # Main sidepanel interface
-│   ├── newtab/          # New tab page replacement
+
 │   ├── popup/           # Extension popup (quick actions)
 │   ├── utils/           # Shared utilities and services
 │   └── types/           # TypeScript type definitions

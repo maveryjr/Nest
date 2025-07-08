@@ -145,7 +145,6 @@ const Sidepanel: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    checkForNewTabSearch();
     loadCompactViewSetting();
     loadDarkModeSetting();
     checkFloatingWindowMode();
@@ -197,20 +196,7 @@ const Sidepanel: React.FC = () => {
     }
   };
 
-  // Check for search query from new tab
-  const checkForNewTabSearch = async () => {
-    try {
-      const result = await chrome.storage.local.get('nest_search_query');
-      if (result.nest_search_query) {
-        setSearchTerm(result.nest_search_query);
-        debouncedSearch(result.nest_search_query);
-        // Clear the stored search query
-        await chrome.storage.local.remove('nest_search_query');
-      }
-    } catch (error) {
-      console.error('Failed to check for new tab search:', error);
-    }
-  };
+
 
   // Global keyboard shortcuts
   useEffect(() => {

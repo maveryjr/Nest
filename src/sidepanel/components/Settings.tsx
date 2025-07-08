@@ -41,7 +41,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     autoTagging: false,
     autoCategorization: false,
     openaiApiKey: '',
-    newTabEnabled: true,
     highlightColor: 'yellow',
     highlightStyle: 'gradient'
   });
@@ -69,17 +68,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const loadSettings = async () => {
     try {
       const data = await storage.getData();
-      const [newTabResult, settingsResult] = await Promise.all([
-        chrome.storage.local.get('nest_newtab_enabled'),
-        chrome.storage.local.get('nest_settings')
-      ]);
+      const settingsResult = await chrome.storage.local.get('nest_settings');
       
       const savedSettings = settingsResult.nest_settings || {};
-      
-      // Prioritize the stored value for newTabEnabled and ensure it's properly handled
-      const newTabEnabled = savedSettings.newTabEnabled !== undefined 
-        ? savedSettings.newTabEnabled 
-        : newTabResult.nest_newtab_enabled !== false;
       
       const loadedSettings = {
         autoSummarize: savedSettings.autoSummarize ?? data.settings?.autoSummarize ?? true,
@@ -91,7 +82,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         autoTagging: savedSettings.autoTagging ?? data.settings?.autoTagging ?? false,
         autoCategorization: savedSettings.autoCategorization ?? data.settings?.autoCategorization ?? false,
         openaiApiKey: savedSettings.openaiApiKey ?? data.settings?.openaiApiKey ?? '',
-        newTabEnabled: newTabEnabled,
         highlightColor: savedSettings.highlightColor ?? data.settings?.highlightColor ?? 'yellow',
         highlightStyle: savedSettings.highlightStyle ?? data.settings?.highlightStyle ?? 'gradient'
       };
@@ -142,9 +132,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     setMessage('');
 
     try {
-      // Save new tab setting to Chrome storage with proper persistence
-      await chrome.storage.local.set({ 'nest_newtab_enabled': newSettings.newTabEnabled });
-      
       // Apply dark mode immediately
       if (newSettings.darkMode !== settings.darkMode) {
         if (newSettings.darkMode) {
@@ -165,8 +152,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           autoCategorization: newSettings.autoCategorization,
           openaiApiKey: newSettings.openaiApiKey,
           highlightColor: newSettings.highlightColor,
-          highlightStyle: newSettings.highlightStyle,
-          newTabEnabled: newSettings.newTabEnabled // Also save to main storage
+          highlightStyle: newSettings.highlightStyle
         }
       };
       
@@ -182,8 +168,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           openaiApiKey: newSettings.openaiApiKey,
           highlightColor: newSettings.highlightColor,
           highlightStyle: newSettings.highlightStyle,
-          darkMode: newSettings.darkMode,
-          newTabEnabled: newSettings.newTabEnabled // Ensure it's saved here too
+          darkMode: newSettings.darkMode
         }
       });
       
@@ -399,20 +384,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 </label>
                 <p className="setting-description">
                   Automatically categorize links based on content and domain
-                </p>
-              </div>
-
-              <div className="setting-item">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.newTabEnabled}
-                    onChange={(e) => setSettings({...settings, newTabEnabled: e.target.checked})}
-                  />
-                  Override new tab page
-                </label>
-                <p className="setting-description">
-                  Replace Chrome's new tab page with Nest
                 </p>
               </div>
 
