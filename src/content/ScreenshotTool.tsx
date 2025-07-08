@@ -299,8 +299,35 @@ const ScreenshotTool: React.FC<ScreenshotToolProps> = ({ isVisible, onClose }) =
     
     const img = new Image();
     img.onload = () => {
+      // Calculate proper scaling to maintain aspect ratio
+      const aspectRatio = img.width / img.height;
+      const canvasAspectRatio = canvas.width / canvas.height;
+      
+      let drawWidth = canvas.width;
+      let drawHeight = canvas.height;
+      
+      // Calculate dimensions to fit image inside canvas while maintaining aspect ratio
+      if (aspectRatio > canvasAspectRatio) {
+        // Image is wider relative to canvas
+        drawHeight = canvas.width / aspectRatio;
+      } else {
+        // Image is taller relative to canvas
+        drawWidth = canvas.height * aspectRatio;
+      }
+      
+      // Center the image
+      const offsetX = (canvas.width - drawWidth) / 2;
+      const offsetY = (canvas.height - drawHeight) / 2;
+      
+      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      // Set image smoothing for better quality
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw the image with proper aspect ratio preservation
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
       
       // Draw all annotations
       [...annotations, currentAnnotation].filter(Boolean).forEach(annotation => {
@@ -389,7 +416,7 @@ const ScreenshotTool: React.FC<ScreenshotToolProps> = ({ isVisible, onClose }) =
               </button>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}>
+          <button className="close-btn" onClick={onClose} title="Close screenshot tool">
             <X size={20} />
           </button>
         </div>
@@ -454,6 +481,8 @@ const ScreenshotTool: React.FC<ScreenshotToolProps> = ({ isVisible, onClose }) =
                           setSelectedColor(color);
                           setShowColorPicker(false);
                         }}
+                        title={`Select ${color} color`}
+                        aria-label={`Select ${color} color`}
                       />
                     ))}
                   </div>
@@ -463,6 +492,8 @@ const ScreenshotTool: React.FC<ScreenshotToolProps> = ({ isVisible, onClose }) =
                         key={width}
                         className={`stroke-option ${strokeWidth === width ? 'selected' : ''}`}
                         onClick={() => setStrokeWidth(width)}
+                        title={`Stroke width ${width}px`}
+                        aria-label={`Stroke width ${width}px`}
                       >
                         <div 
                           className="stroke-preview"
@@ -844,11 +875,14 @@ const ScreenshotTool: React.FC<ScreenshotToolProps> = ({ isVisible, onClose }) =
         }
 
         .canvas-container canvas {
-          max-width: 100%;
-          max-height: 100%;
+          max-width: calc(100% - 40px);
+          max-height: calc(100% - 40px);
           border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 8px;
           background: white;
+          object-fit: contain;
+          width: auto;
+          height: auto;
         }
 
         .text-input-modal {

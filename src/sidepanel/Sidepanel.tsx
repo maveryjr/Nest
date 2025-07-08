@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain } from 'lucide-react';
-import { SavedLink, Collection, StorageData, SmartCollection } from '../types';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain, List, Grid3X3, Focus, Network, Mic, Edit } from 'lucide-react';
+import { SavedLink, Collection, StorageData, SmartCollection, VoiceMemo, RichNote } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
 import CollectionCard from './components/CollectionCard';
@@ -19,6 +19,9 @@ import { Session } from '@supabase/supabase-js';
 import './sidepanel.css';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import AIInsights from './components/AIInsights';
+import FocusModeComponent from './components/FocusMode';
+import KnowledgeGraph from './components/KnowledgeGraph';
+import RichAnnotations from './components/RichAnnotations';
 
 interface UserTag {
   id: string;
@@ -61,10 +64,42 @@ const Sidepanel: React.FC = () => {
   const [loadingInbox, setLoadingInbox] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTabSync, setShowTabSync] = useState(false);
-  const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [currentPageInfo, setCurrentPageInfo] = useState<any>(null);
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
+  const [showFocusMode, setShowFocusMode] = useState(false);
+  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
+  const [showRichAnnotations, setShowRichAnnotations] = useState(false);
+  const [annotationTarget, setAnnotationTarget] = useState<{type: 'link' | 'highlight', id: string} | null>(null);
+  const [compactView, setCompactView] = useState(false);
+  const [isAIOrganizing, setIsAIOrganizing] = useState(false);
+  const [isAIOrganizingHolding, setIsAIOrganizingHolding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Toast notification system
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    if (type === 'success') {
+      setSuccessMessage(message);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+    } else if (type === 'error') {
+      setError(message);
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+
+  // Enhanced error handling wrapper
+  const withErrorHandling = async (fn: () => Promise<any>, errorMessage: string) => {
+    try {
+      await fn();
+    } catch (error) {
+      console.error(errorMessage, error);
+      showToast(`${errorMessage}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  };
 
   useEffect(() => {
     // Check for an initial session
@@ -108,7 +143,30 @@ const Sidepanel: React.FC = () => {
   useEffect(() => {
     loadData();
     checkForNewTabSearch();
+    loadCompactViewSetting();
   }, []);
+
+  // Load compact view setting from storage
+  const loadCompactViewSetting = async () => {
+    try {
+      const result = await chrome.storage.local.get('nest_compact_view');
+      if (result.nest_compact_view !== undefined) {
+        setCompactView(result.nest_compact_view);
+      }
+    } catch (error) {
+      console.error('Failed to load compact view setting:', error);
+    }
+  };
+
+  // Save compact view setting to storage
+  const saveCompactViewSetting = async (isCompact: boolean) => {
+    try {
+      await chrome.storage.local.set({ 'nest_compact_view': isCompact });
+      setCompactView(isCompact);
+    } catch (error) {
+      console.error('Failed to save compact view setting:', error);
+    }
+  };
 
   // Check for search query from new tab
   const checkForNewTabSearch = async () => {
@@ -146,6 +204,7 @@ const Sidepanel: React.FC = () => {
       await loadInboxLinks();
     } catch (error) {
       console.error('Failed to load data:', error);
+      showToast('Failed to load data. Please refresh the page.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -285,7 +344,7 @@ const Sidepanel: React.FC = () => {
   };
 
   const handleUpdateLink = async (linkId: string, updates: Partial<SavedLink>) => {
-    try {
+    await withErrorHandling(async () => {
       await storage.updateLink(linkId, updates);
       
       // Log organize activity if moving between collections
@@ -296,13 +355,12 @@ const Sidepanel: React.FC = () => {
       }
       
       await loadData();
-    } catch (error) {
-      console.error('Failed to update link:', error);
-    }
+      showToast('Link updated successfully!');
+    }, 'Failed to update link');
   };
 
   const handleDeleteLink = async (linkId: string) => {
-    try {
+    await withErrorHandling(async () => {
       await storage.deleteLink(linkId);
       await loadData();
       await loadUserTags(); // Refresh tags after deletion
@@ -311,9 +369,8 @@ const Sidepanel: React.FC = () => {
       if (selectedTag) {
         handleTagSelect(selectedTag);
       }
-    } catch (error) {
-      console.error('Failed to delete link:', error);
-    }
+      showToast('Link deleted successfully!');
+    }, 'Failed to delete link');
   };
 
   const handleMoveToCollection = async (linkId: string, collectionId: string) => {
@@ -399,6 +456,121 @@ const Sidepanel: React.FC = () => {
       setSelectedInboxLinks([]);
     } catch (error) {
       console.error('Failed to bulk move links from inbox:', error);
+    }
+  };
+
+  const handleAIAutoOrganize = async () => {
+    if (inboxLinks.length === 0 || isAIOrganizing) return;
+    
+    setIsAIOrganizing(true);
+    
+    try {
+      // Check if user has OpenAI API key configured
+      const result = await chrome.storage.local.get('nest_settings');
+      const apiKey = result.nest_settings?.openaiApiKey;
+      
+      if (!apiKey) {
+        alert('Please configure your OpenAI API key in settings to use AI auto-organize.');
+        setShowSettings(true);
+        return;
+      }
+
+      // Request AI analysis for all inbox links
+      const organizationPromises = inboxLinks.map(async (link) => {
+        try {
+          const response = await chrome.runtime.sendMessage({ 
+            action: 'analyzePageWithAI',
+            linkData: {
+              title: link.title,
+              url: link.url,
+              description: link.description,
+              content: link.aiSummary || link.userNote || ''
+            }
+          });
+
+          if (response.success && response.analysis) {
+            const analysis = response.analysis;
+            
+            // Find best matching collection based on AI analysis
+            let bestCollectionId = null;
+            let bestMatch = 0;
+            
+            // Check category suggestions against existing collections
+            if (analysis.categorySuggestions && analysis.categorySuggestions.length > 0) {
+              for (const suggestion of analysis.categorySuggestions) {
+                const matchingCollection = data.collections.find(col => 
+                  col.name.toLowerCase().includes(suggestion.category.toLowerCase()) ||
+                  suggestion.category.toLowerCase().includes(col.name.toLowerCase())
+                );
+                
+                if (matchingCollection && suggestion.confidence > bestMatch) {
+                  bestCollectionId = matchingCollection.id;
+                  bestMatch = suggestion.confidence;
+                }
+              }
+            }
+            
+            // Apply AI suggestions
+            const updates: any = {};
+            
+            // Apply category if confident enough
+            if (analysis.categorySuggestions && analysis.categorySuggestions[0]?.confidence > 0.7) {
+              updates.category = analysis.categorySuggestions[0].category;
+            }
+            
+            // Move to collection if found good match
+            if (bestCollectionId && bestMatch > 0.6) {
+              await storage.moveFromInbox(link.id, bestCollectionId);
+            } else {
+              // Otherwise just move to holding area with updates
+              await storage.moveFromInbox(link.id);
+              if (Object.keys(updates).length > 0) {
+                await storage.updateLink(link.id, updates);
+              }
+            }
+            
+            // Add AI suggested tags
+            if (analysis.tagSuggestions && analysis.tagSuggestions.length > 0) {
+              const highConfidenceTags = analysis.tagSuggestions
+                .filter(tag => tag.confidence > 0.6)
+                .map(tag => tag.tag)
+                .slice(0, 3); // Limit to 3 tags
+              
+              if (highConfidenceTags.length > 0) {
+                await storage.addTagsToLink(link.id, highConfidenceTags);
+              }
+            }
+            
+            return { success: true, link: link.id, collection: bestCollectionId };
+          }
+        } catch (error) {
+          console.error(`Failed to analyze link ${link.id}:`, error);
+          return { success: false, link: link.id, error };
+        }
+      });
+
+      const results = await Promise.all(organizationPromises);
+      const successful = results.filter(r => r.success).length;
+      const failed = results.filter(r => !r.success).length;
+      
+      // Show notification
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'AI Auto-Organize Complete',
+        message: `Organized ${successful} items${failed > 0 ? `, ${failed} failed` : ''}`
+      });
+
+      // Refresh data
+      await loadInboxLinks();
+      await loadData();
+      await loadUserTags();
+      
+    } catch (error) {
+      console.error('AI auto-organize failed:', error);
+      alert('AI auto-organize failed. Please try again.');
+    } finally {
+      setIsAIOrganizing(false);
     }
   };
 
@@ -502,6 +674,55 @@ const Sidepanel: React.FC = () => {
     setCurrentPageInfo(null);
   };
 
+  const handleOpenRichAnnotations = (type: 'link' | 'highlight', id: string) => {
+    setAnnotationTarget({ type, id });
+    setShowRichAnnotations(true);
+  };
+
+  const handleSaveVoiceMemo = async (memo: VoiceMemo) => {
+    if (!annotationTarget) return;
+
+    try {
+      await withErrorHandling(async () => {
+        if (annotationTarget.type === 'link') {
+          const link = data.links.find(l => l.id === annotationTarget.id);
+          if (link) {
+            await handleUpdateLink(link.id, {
+              voiceMemos: [...(link.voiceMemos || []), memo]
+            });
+          }
+        }
+        showToast('Voice memo saved successfully!', 'success');
+        setShowRichAnnotations(false);
+        setAnnotationTarget(null);
+      }, 'Failed to save voice memo');
+    } catch (error) {
+      console.error('Error saving voice memo:', error);
+    }
+  };
+
+  const handleSaveRichNote = async (note: RichNote) => {
+    if (!annotationTarget) return;
+
+    try {
+      await withErrorHandling(async () => {
+        if (annotationTarget.type === 'link') {
+          const link = data.links.find(l => l.id === annotationTarget.id);
+          if (link) {
+            await handleUpdateLink(link.id, {
+              richNotes: [...(link.richNotes || []), note]
+            });
+          }
+        }
+        showToast('Rich note saved successfully!', 'success');
+        setShowRichAnnotations(false);
+        setAnnotationTarget(null);
+      }, 'Failed to save rich note');
+    } catch (error) {
+      console.error('Error saving rich note:', error);
+    }
+  };
+
   // Debounced search function
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -555,12 +776,197 @@ const Sidepanel: React.FC = () => {
     setTaggedLinks([]);
   };
 
-  // Filter function for normal (non-search, non-tag) mode
-  const filteredLinks = (searchMode || selectedTag) ? [] : data.links.filter(link => !link.isInInbox);
-
-  const holdingAreaLinks = filteredLinks.filter(link => !link.collectionId);
+  // Get collection links
   const getCollectionLinks = (collectionId: string) => 
     filteredLinks.filter(link => link.collectionId === collectionId);
+
+  // Get filtered links (excluding inbox items)
+  const filteredLinks = data.links.filter(link => !link.isInInbox);
+
+  // Get holding area links (items without specific collection)
+  const holdingAreaLinks = filteredLinks.filter(link => !link.collectionId);
+
+  // AI Auto-Organize for Holding Area
+  const handleAIAutoOrganizeHolding = async () => {
+    if (holdingAreaLinks.length === 0 || isAIOrganizingHolding) return;
+    
+    setIsAIOrganizingHolding(true);
+    
+    try {
+      // Check if user has OpenAI API key configured
+      const result = await chrome.storage.local.get('nest_settings');
+      const apiKey = result.nest_settings?.openaiApiKey;
+      
+      if (!apiKey) {
+        alert('Please configure your OpenAI API key in settings to use AI auto-organize.');
+        setIsAIOrganizingHolding(false);
+        return;
+      }
+
+      // Get user's existing collections
+      const collections = data.collections;
+      
+      // Process each holding area link
+      const organizePromises = holdingAreaLinks.map(async (link) => {
+        try {
+          // Request AI analysis using the existing analyzePageWithAI action
+          const analysisResponse = await chrome.runtime.sendMessage({
+            action: 'analyzePageWithAI'
+          });
+
+          if (analysisResponse.success && analysisResponse.analysis) {
+            const analysis = analysisResponse.analysis;
+            
+            // Find best matching collection based on AI suggestions
+            let bestCollectionId = null;
+            let highestConfidence = 0;
+            let bestMatchReason = '';
+
+            // Check collections against AI category suggestions
+            for (const collection of collections) {
+              const collectionName = collection.name.toLowerCase();
+              
+              // Try to match with category suggestions
+              if (analysis.categorySuggestions) {
+                for (const suggestion of analysis.categorySuggestions) {
+                  const category = suggestion.category.toLowerCase();
+                  
+                  // More flexible matching - check if collection name contains category words or vice versa
+                  const categoryWords = category.split(/\s+/);
+                  const collectionWords = collectionName.split(/\s+/);
+                  
+                  let matchScore = 0;
+                  for (const catWord of categoryWords) {
+                    for (const colWord of collectionWords) {
+                      if (catWord.includes(colWord) || colWord.includes(catWord)) {
+                        matchScore += suggestion.confidence;
+                      }
+                    }
+                  }
+                  
+                  // Lower the threshold for better matching
+                  if (matchScore > 0.4 && matchScore > highestConfidence) {
+                    highestConfidence = matchScore;
+                    bestCollectionId = collection.id;
+                    bestMatchReason = `Category "${suggestion.category}" matches collection "${collection.name}"`;
+                  }
+                }
+              }
+              
+              // Also try matching with content topics
+              if (analysis.topics) {
+                for (const topic of analysis.topics) {
+                  const topicLower = topic.toLowerCase();
+                  if (collectionName.includes(topicLower) || topicLower.includes(collectionName)) {
+                    const score = 0.5; // Give topics a moderate score
+                    if (score > highestConfidence) {
+                      highestConfidence = score;
+                      bestCollectionId = collection.id;
+                      bestMatchReason = `Topic "${topic}" matches collection "${collection.name}"`;
+                    }
+                  }
+                }
+              }
+            }
+
+            // If no good match found, try to create a reasonable default assignment
+            if (!bestCollectionId && collections.length > 0) {
+              // Look for a "general" or similar collection
+              const generalCollection = collections.find(c => 
+                c.name.toLowerCase().includes('general') || 
+                c.name.toLowerCase().includes('misc') ||
+                c.name.toLowerCase().includes('other') ||
+                c.name.toLowerCase().includes('default')
+              );
+              
+              if (generalCollection) {
+                bestCollectionId = generalCollection.id;
+                bestMatchReason = 'Moved to general collection as fallback';
+                highestConfidence = 0.3;
+              } else {
+                // Just use the first available collection as fallback
+                bestCollectionId = collections[0].id;
+                bestMatchReason = 'Moved to available collection as fallback';
+                highestConfidence = 0.2;
+              }
+            }
+
+            // Move the link if we found any collection (lowered threshold)
+            if (bestCollectionId && highestConfidence > 0.1) {
+              await storage.updateLink(link.id, { collectionId: bestCollectionId });
+              
+              // Apply AI tags if available
+              if (analysis.tagSuggestions && analysis.tagSuggestions.length > 0) {
+                const highConfidenceTags = analysis.tagSuggestions
+                  .filter(tag => tag.confidence > 0.5) // Lowered threshold
+                  .map(tag => tag.tag)
+                  .slice(0, 3);
+                
+                if (highConfidenceTags.length > 0) {
+                  await storage.addTagsToLink(link.id, highConfidenceTags);
+                }
+              }
+              
+              console.log(`AI Organized: "${link.title}" -> Collection (${bestMatchReason})`);
+              return { success: true, linkId: link.id, collectionId: bestCollectionId, reason: bestMatchReason };
+            }
+          }
+          
+          // If AI analysis fails, still try to organize to a default collection
+          if (collections.length > 0) {
+            const defaultCollection = collections.find(c => 
+              c.name.toLowerCase().includes('general') ||
+              c.name.toLowerCase().includes('misc') ||
+              c.name.toLowerCase().includes('unsorted')
+            ) || collections[0];
+            
+            await storage.updateLink(link.id, { collectionId: defaultCollection.id });
+            console.log(`Fallback Organized: "${link.title}" -> ${defaultCollection.name}`);
+            return { success: true, linkId: link.id, collectionId: defaultCollection.id, reason: 'Fallback organization' };
+          }
+          
+          return { success: false, linkId: link.id, error: 'No collections available' };
+        } catch (error) {
+          console.error('Failed to organize link:', link.id, error);
+          
+          // Even if AI fails, try to move to a default collection
+          if (collections.length > 0) {
+            try {
+              const defaultCollection = collections[0];
+              await storage.updateLink(link.id, { collectionId: defaultCollection.id });
+              return { success: true, linkId: link.id, collectionId: defaultCollection.id, reason: 'Error fallback' };
+            } catch (fallbackError) {
+              console.error('Fallback organization also failed:', fallbackError);
+            }
+          }
+          
+          return { success: false, linkId: link.id, error: (error as Error).message };
+        }
+      });
+
+      const results = await Promise.all(organizePromises);
+      const successful = results.filter(r => r.success).length;
+      const failed = results.filter(r => !r.success).length;
+      
+      // Show notification
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'AI Auto-Organize Complete',
+        message: `Organized ${successful} items from holding area${failed > 0 ? `, ${failed} failed` : ''}`
+      });
+
+      // Refresh data
+      await loadData();
+      await loadUserTags();
+      
+    } catch (error) {
+      console.error('AI auto-organize failed:', error);
+      alert('AI auto-organize failed. Please try again.');
+    } finally {
+      setIsAIOrganizingHolding(false);
+    }
+  };
 
   // Determine what links to show based on current mode
   const getCurrentViewLinks = () => {
@@ -643,6 +1049,22 @@ const Sidepanel: React.FC = () => {
             <Brain size={18} />
             AI Insights
           </button>
+          
+          <button onClick={() => setShowFocusMode(true)} className="focus-mode-button" title="Focus Mode">
+            <Focus size={18} />
+            Focus
+          </button>
+          
+          <button onClick={() => setShowKnowledgeGraph(true)} className="knowledge-graph-button" title="Knowledge Graph">
+            <Network size={18} />
+            Graph
+          </button>
+          
+          <button onClick={() => handleOpenRichAnnotations('link', '')} className="rich-annotations-button" title="Rich Annotations">
+            <Edit size={18} />
+            Annotate
+          </button>
+          
           <button onClick={handleLogout} className="logout-button" title="Logout">
             <LogOut size={18} />
           </button>
@@ -692,6 +1114,28 @@ const Sidepanel: React.FC = () => {
         />
       )}
 
+      {/* View Toggle */}
+      <div className="view-toggle-container">
+        <div className="view-toggle">
+          <button
+            onClick={() => saveCompactViewSetting(false)}
+            className={`view-toggle-btn ${!compactView ? 'active' : ''}`}
+            title="Normal view"
+          >
+            <Grid3X3 size={14} />
+            Normal
+          </button>
+          <button
+            onClick={() => saveCompactViewSetting(true)}
+            className={`view-toggle-btn ${compactView ? 'active' : ''}`}
+            title="Compact view"
+          >
+            <List size={14} />
+            Compact
+          </button>
+        </div>
+      </div>
+
       {/* Content */}
       <div className="content">
         {searchMode ? (
@@ -718,6 +1162,7 @@ const Sidepanel: React.FC = () => {
                   onMoveToCollection={handleMoveToCollection}
                   onAddNote={handleAddNote}
                   onTagsUpdated={handleTagsUpdated}
+                  compactView={compactView}
                 />
               ))
             )}
@@ -749,6 +1194,7 @@ const Sidepanel: React.FC = () => {
                   onMoveToCollection={handleMoveToCollection}
                   onAddNote={handleAddNote}
                   onTagsUpdated={handleTagsUpdated}
+                  compactView={compactView}
                 />
               ))
             )}
@@ -780,6 +1226,15 @@ const Sidepanel: React.FC = () => {
                     >
                       <CheckSquare size={14} />
                       {selectedInboxLinks.length === inboxLinks.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                    <button
+                      onClick={handleAIAutoOrganize}
+                      className="inbox-action-button ai-organize-button"
+                      title="Use AI to automatically organize all inbox items"
+                      disabled={inboxLinks.length === 0 || isAIOrganizing}
+                    >
+                      <Sparkles size={14} className={isAIOrganizing ? 'spinning' : ''} />
+                      {isAIOrganizing ? 'Organizing...' : 'AI Auto-Organize'}
                     </button>
                     {selectedInboxLinks.length > 0 && (
                       <>
@@ -839,6 +1294,7 @@ const Sidepanel: React.FC = () => {
                         onTagsUpdated={handleTagsUpdated}
                         isSelected={selectedInboxLinks.includes(link.id)}
                         onSelect={handleSelectInboxLink}
+                        compactView={compactView}
                       />
                     ))
                   )}
@@ -870,6 +1326,7 @@ const Sidepanel: React.FC = () => {
                         onDeleteLink={handleDeleteLink}
                         onAddNote={handleAddNote}
                         onTagsUpdated={handleTagsUpdated}
+                        compactView={compactView}
                       />
                     ))}
                   </div>
@@ -879,23 +1336,41 @@ const Sidepanel: React.FC = () => {
 
             {/* Holding Area */}
             <div className="section">
-              <button
-                onClick={() => toggleSection('holdingArea')}
-                className="section-header"
-              >
-                {expandedSections.holdingArea ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                <span>Holding Area</span>
-                <span className="count">{holdingAreaLinks.length}</span>
-              </button>
+              <div className="inbox-section-header">
+                <div className="inbox-section-title">
+                  <button
+                    onClick={() => toggleSection('holdingArea')}
+                    className="section-header"
+                  >
+                    {expandedSections.holdingArea ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <span>Holding Area</span>
+                    <span className="count">{holdingAreaLinks.length}</span>
+                  </button>
+                </div>
+                
+                {holdingAreaLinks.length > 0 && (
+                  <div className="inbox-actions">
+                    <button
+                      onClick={handleAIAutoOrganizeHolding}
+                      className="inbox-action-button"
+                      title="Use AI to automatically organize items into collections"
+                      disabled={holdingAreaLinks.length === 0 || isAIOrganizingHolding}
+                    >
+                      <Sparkles size={14} className={isAIOrganizingHolding ? 'spinning' : ''} />
+                      {isAIOrganizingHolding ? 'Organizing...' : 'AI Auto-Organize'}
+                    </button>
+                  </div>
+                )}
+              </div>
               
               {expandedSections.holdingArea && (
                 <div className="section-content">
                   {holdingAreaLinks.length === 0 ? (
                     <div className="empty-state">
-                      <p>No links saved yet</p>
-                      <button onClick={saveCurrentPage} className="empty-action">
-                        Save current page
-                      </button>
+                      <p>No links in holding area</p>
+                      <p style={{ fontSize: '0.9em', color: 'var(--ui-text-secondary)', marginTop: '0.5rem' }}>
+                        Links without a specific collection will appear here
+                      </p>
                     </div>
                   ) : (
                     holdingAreaLinks.map(link => (
@@ -908,6 +1383,7 @@ const Sidepanel: React.FC = () => {
                         onMoveToCollection={handleMoveToCollection}
                         onAddNote={handleAddNote}
                         onTagsUpdated={handleTagsUpdated}
+                        compactView={compactView}
                       />
                     ))
                   )}
@@ -961,6 +1437,7 @@ const Sidepanel: React.FC = () => {
                           onAddNote={handleAddNote}
                           onTagsUpdated={handleTagsUpdated}
                           onUpdate={loadData}
+                          compactView={compactView}
                         />
                       );
                     })
@@ -1049,6 +1526,54 @@ const Sidepanel: React.FC = () => {
 
       {showAIInsights && (
         <AIInsights onClose={() => setShowAIInsights(false)} />
+      )}
+
+      {showFocusMode && (
+        <FocusModeComponent
+          isOpen={showFocusMode}
+          onClose={() => setShowFocusMode(false)}
+        />
+      )}
+
+      {showKnowledgeGraph && (
+        <KnowledgeGraph
+          isOpen={showKnowledgeGraph}
+          onClose={() => setShowKnowledgeGraph(false)}
+          links={data.links}
+        />
+      )}
+
+      {showRichAnnotations && annotationTarget && (
+        <RichAnnotations
+          isOpen={showRichAnnotations}
+          onClose={() => {
+            setShowRichAnnotations(false);
+            setAnnotationTarget(null);
+          }}
+          onSaveVoiceMemo={handleSaveVoiceMemo}
+          onSaveRichNote={handleSaveRichNote}
+          targetType={annotationTarget.type}
+          targetId={annotationTarget.id}
+        />
+      )}
+
+      {/* Toast Notifications */}
+      {showSuccessToast && (
+        <div className="toast-notification success">
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="toast-notification error">
+          <span>{error}</span>
+          <button 
+            onClick={() => setError(null)}
+            style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
       )}
     </div>
   );

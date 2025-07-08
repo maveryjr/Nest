@@ -25,7 +25,6 @@
     }
   ],
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Nest - Smart Bookmarks",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -59,6 +58,13 @@
         "mac": "Command+Shift+S"
       },
       "description": "Save current page to Nest"
+    },
+    "save-to-inbox": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+I",
+        "mac": "Command+Shift+I"
+      },
+      "description": "Save current page to Nest Inbox"
     },
     "open-command-palette": {
       "suggested_key": {

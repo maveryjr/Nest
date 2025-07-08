@@ -27,6 +27,7 @@ interface InboxCardProps {
   onTagsUpdated: () => void;
   isSelected?: boolean;
   onSelect?: (linkId: string) => void;
+  compactView?: boolean;
 }
 
 const InboxCard: React.FC<InboxCardProps> = ({
@@ -38,7 +39,8 @@ const InboxCard: React.FC<InboxCardProps> = ({
   onAddNote,
   onTagsUpdated,
   isSelected = false,
-  onSelect
+  onSelect,
+  compactView = false
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showCollectionsSubmenu, setShowCollectionsSubmenu] = useState(false);
@@ -47,6 +49,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
   const handleOpenLink = () => {
     chrome.tabs.create({ url: link.url });
@@ -58,8 +61,15 @@ const InboxCard: React.FC<InboxCardProps> = ({
     }
   };
 
-  const handleMenuClick = (e: React.MouseEvent) => {
+  const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    if (!showMenu) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 180 // Align right edge of menu with button
+      });
+    }
     setShowMenu(!showMenu);
     setShowCollectionsSubmenu(false);
   };
@@ -162,233 +172,322 @@ const InboxCard: React.FC<InboxCardProps> = ({
   }, [showMenu]);
 
   return (
-    <div className={`inbox-card ${isSelected ? 'selected' : ''}`}>
-      <div className="inbox-card-content">
-        <div className="inbox-card-checkbox">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(e) => handleCheckboxChange(e.target.checked)}
-            aria-label={`Select ${link.title}`}
-            title={`Select ${link.title}`}
-          />
-        </div>
-
-        <div className="inbox-card-main-content">
-          <div className="inbox-card-favicon">
-            {link.favicon ? (
-              <img 
-                src={link.favicon} 
-                alt="" 
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const placeholder = target.nextElementSibling as HTMLElement;
-                  if (placeholder) placeholder.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div 
-              className="favicon-placeholder" 
-              style={{
-                backgroundColor: getDomainColor(link.domain),
-                display: link.favicon ? 'none' : 'flex'
-              }}
-            >
-              {link.domain.charAt(0).toUpperCase()}
+    <div className={`inbox-card ${isSelected ? 'selected' : ''} ${compactView ? 'compact' : ''}`}>
+      {compactView ? (
+        // Compact View: Just checkbox, title and category in a row
+        <div className="inbox-card-compact">
+          <div className="inbox-card-checkbox">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => handleCheckboxChange(e.target.checked)}
+              aria-label={`Select ${link.title}`}
+              title={`Select ${link.title}`}
+            />
+          </div>
+          <div className="inbox-card-compact-main" onClick={handleOpenLink}>
+            <div className="inbox-card-compact-title">
+              {link.title}
+            </div>
+            <div className="inbox-card-compact-meta">
+              <span className="link-domain">{link.domain}</span>
+              <span className="category-badge-compact"
+                style={{ backgroundColor: getDomainColor(link.domain) }}>
+                {link.category || 'general'}
+              </span>
             </div>
           </div>
-
-          <div className="inbox-card-body">
-            <div className="inbox-card-header">
-              <div className="inbox-card-title-section">
-                <h3 className="inbox-card-title" onClick={handleOpenLink}>
-                  {link.title}
-                </h3>
-                <div className="inbox-card-domain">
-                  {link.domain} • {formatDate(link.createdAt)}
-                </div>
-              </div>
-
-              <div className="inbox-card-actions">
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inbox-card-link"
-                  title="Open link"
-                >
-                  <ExternalLink size={14} />
-                </a>
-
-                <div className="inbox-card-menu-container dropdown">
+          <div className="inbox-card-compact-actions">
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="action-button-compact"
+              title="Open link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={14} />
+            </a>
+            <div className="dropdown">
+              <button
+                onClick={handleMenuClick}
+                className="action-button-compact"
+                title="More options"
+              >
+                <MoreVertical size={14} />
+              </button>
+              {showMenu && (
+                <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
                   <button
-                    onClick={handleMenuClick}
-                    className="inbox-card-menu-button"
-                    title="More options"
+                    onClick={handleAISuggestionsClick}
+                    className="dropdown-menu-item"
+                    disabled={isAnalyzing}
                   >
-                    <MoreVertical size={14} />
+                    <Sparkles size={14} />
+                    {isAnalyzing ? 'Analyzing...' : 'AI Suggestions'}
                   </button>
+                  <button
+                    onClick={handleTagsClick}
+                    className="dropdown-menu-item"
+                  >
+                    <TagIcon size={14} />
+                    <span>Add Tags</span>
+                  </button>
+                  <button
+                    onClick={handleAddNote}
+                    className="dropdown-menu-item"
+                  >
+                    <Edit3 size={14} />
+                    <span>Add Note</span>
+                  </button>
+                  <button
+                    onClick={handleArchive}
+                    className="dropdown-menu-item"
+                  >
+                    <Archive size={14} />
+                    <span>Archive</span>
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="dropdown-menu-item delete-action"
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Normal View: Full layout as before
+        <div className="inbox-card-content">
+          <div className="inbox-card-checkbox">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => handleCheckboxChange(e.target.checked)}
+              aria-label={`Select ${link.title}`}
+              title={`Select ${link.title}`}
+            />
+          </div>
 
-                  {showMenu && (
-                    <div className="dropdown-menu">
-                      <button
-                        onClick={handleAISuggestionsClick}
-                        className="dropdown-menu-item"
-                        disabled={isAnalyzing}
-                      >
-                        <Sparkles size={14} />
-                        {isAnalyzing ? 'Analyzing...' : 'AI Suggestions'}
-                      </button>
-                      
-                      <button
-                        onClick={handleTagsClick}
-                        className="dropdown-menu-item"
-                      >
-                        <TagIcon size={14} />
-                        <span>Add Tags</span>
-                      </button>
+          <div className="inbox-card-main-content">
+            <div className="inbox-card-favicon">
+              {link.favicon ? (
+                <img 
+                  src={link.favicon} 
+                  alt="" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const placeholder = target.nextElementSibling as HTMLElement;
+                    if (placeholder) placeholder.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="favicon-placeholder" 
+                style={{
+                  backgroundColor: getDomainColor(link.domain),
+                  display: link.favicon ? 'none' : 'flex'
+                }}
+              >
+                {link.domain.charAt(0).toUpperCase()}
+              </div>
+            </div>
 
-                      <button
-                        onClick={handleAddNote}
-                        className="dropdown-menu-item"
-                      >
-                        <Edit3 size={14} />
-                        <span>Add Note</span>
-                      </button>
+            <div className="inbox-card-body">
+              <div className="inbox-card-header">
+                <div className="inbox-card-title-section">
+                  <h3 className="inbox-card-title" onClick={handleOpenLink}>
+                    {link.title}
+                  </h3>
+                  <div className="inbox-card-domain">
+                    {link.domain} • {formatDate(link.createdAt)}
+                  </div>
+                </div>
 
-                      <div className="dropdown-submenu-container">
+                <div className="inbox-card-actions">
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inbox-card-link"
+                    title="Open link"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+
+                  <div className="inbox-card-menu-container dropdown">
+                    <button
+                      onClick={handleMenuClick}
+                      className="inbox-card-menu-button"
+                      title="More options"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+
+                    {showMenu && (
+                      <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
                         <button
-                          onClick={() => setShowCollectionsSubmenu(!showCollectionsSubmenu)}
+                          onClick={handleAISuggestionsClick}
+                          className="dropdown-menu-item"
+                          disabled={isAnalyzing}
+                        >
+                          <Sparkles size={14} />
+                          {isAnalyzing ? 'Analyzing...' : 'AI Suggestions'}
+                        </button>
+                        
+                        <button
+                          onClick={handleTagsClick}
                           className="dropdown-menu-item"
                         >
-                          <FolderPlus size={14} />
-                          <span>Move to Collection</span>
+                          <TagIcon size={14} />
+                          <span>Add Tags</span>
                         </button>
 
-                        {showCollectionsSubmenu && (
-                          <div className="dropdown-menu submenu">
-                            <div className="submenu-header">
-                              <span>Collections</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowCollectionsSubmenu(false);
-                                }}
-                                className="submenu-close"
-                                title="Close"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                            {collections.length > 0 ? (
-                              collections.map((collection) => (
+                        <button
+                          onClick={handleAddNote}
+                          className="dropdown-menu-item"
+                        >
+                          <Edit3 size={14} />
+                          <span>Add Note</span>
+                        </button>
+
+                        <div className="dropdown-submenu-container">
+                          <button
+                            onClick={() => setShowCollectionsSubmenu(!showCollectionsSubmenu)}
+                            className="dropdown-menu-item"
+                          >
+                            <FolderPlus size={14} />
+                            <span>Move to Collection</span>
+                          </button>
+
+                          {showCollectionsSubmenu && (
+                            <div className="dropdown-menu submenu">
+                              <div className="submenu-header">
+                                <span>Collections</span>
                                 <button
-                                  key={collection.id}
-                                  onClick={() => handleMoveToCollection(collection.id)}
-                                  className="dropdown-menu-item"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowCollectionsSubmenu(false);
+                                  }}
+                                  className="submenu-close"
+                                  title="Close"
                                 >
-                                  {collection.name}
+                                  <X size={12} />
                                 </button>
-                              ))
-                            ) : (
-                              <div className="submenu-empty">
-                                No collections
                               </div>
-                            )}
-                          </div>
-                        )}
+                              {collections.length > 0 ? (
+                                collections.map((collection) => (
+                                  <button
+                                    key={collection.id}
+                                    onClick={() => handleMoveToCollection(collection.id)}
+                                    className="dropdown-menu-item"
+                                  >
+                                    {collection.name}
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="submenu-empty">
+                                  No collections
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={handleArchive}
+                          className="dropdown-menu-item"
+                        >
+                          <Archive size={14} />
+                          <span>Archive</span>
+                        </button>
+
+                        <button
+                          onClick={handleDelete}
+                          className="dropdown-menu-item delete-action"
+                        >
+                          <Trash2 size={14} />
+                          <span>Delete</span>
+                        </button>
                       </div>
-
-                      <button
-                        onClick={handleArchive}
-                        className="dropdown-menu-item"
-                      >
-                        <Archive size={14} />
-                        <span>Archive</span>
-                      </button>
-
-                      <button
-                        onClick={handleDelete}
-                        className="dropdown-menu-item delete-action"
-                      >
-                        <Trash2 size={14} />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="inbox-card-footer">
-              {/* AI Suggestions */}
-              {showAISuggestions && aiAnalysis && (
-                <AISuggestions
-                  analysis={aiAnalysis}
-                  onTagsApproved={handleAITagsApproved}
-                  onCategoryApproved={handleAICategoryApproved}
-                  onClose={() => setShowAISuggestions(false)}
-                  isLoading={isAnalyzing}
-                />
-              )}
-
-              {/* Highlights */}
-              {link.highlights && link.highlights.length > 0 && (
-                <div className="inbox-card-highlights">
-                  <button
-                    onClick={() => setShowHighlights(!showHighlights)}
-                    className="highlights-toggle"
-                    title={`${showHighlights ? 'Hide' : 'Show'} highlights`}
-                    aria-label={`${showHighlights ? 'Hide' : 'Show'} ${link.highlights.length} highlight${link.highlights.length !== 1 ? 's' : ''}`}
-                  >
-                    <span>🔗 {link.highlights.length} highlight{link.highlights.length !== 1 ? 's' : ''}</span>
-                    <span className={`highlights-chevron ${showHighlights ? 'expanded' : ''}`}>
-                      ▼
-                    </span>
-                  </button>
-
-                  {showHighlights && (
-                    <div className="inbox-highlights-list" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                      {link.highlights.map((highlight) => (
-                        <HighlightCard
-                          key={highlight.id}
-                          highlight={highlight}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {link.aiSummary && (
-                <div className="inbox-card-summary">
-                  <p>{link.aiSummary}</p>
-                </div>
-              )}
-
-              {link.userNote && (
-                <div className="inbox-card-note">
-                  <p>{link.userNote}</p>
-                </div>
-              )}
-
-              {showTagInput && (
-                <div className="inbox-card-tags">
-                  <TagInput
-                    linkId={link.id}
-                    onTagsUpdated={() => {
-                      onTagsUpdated();
-                      setShowTagInput(false);
-                    }}
-                    onCancel={() => setShowTagInput(false)}
+              
+              <div className="inbox-card-footer">
+                {/* AI Suggestions */}
+                {showAISuggestions && aiAnalysis && (
+                  <AISuggestions
+                    analysis={aiAnalysis}
+                    onTagsApproved={handleAITagsApproved}
+                    onCategoryApproved={handleAICategoryApproved}
+                    onClose={() => setShowAISuggestions(false)}
+                    isLoading={isAnalyzing}
                   />
-                </div>
-              )}
+                )}
+
+                {/* Highlights */}
+                {link.highlights && link.highlights.length > 0 && (
+                  <div className="inbox-card-highlights">
+                    <button
+                      onClick={() => setShowHighlights(!showHighlights)}
+                      className="highlights-toggle"
+                      title={`${showHighlights ? 'Hide' : 'Show'} highlights`}
+                      aria-label={`${showHighlights ? 'Hide' : 'Show'} ${link.highlights.length} highlight${link.highlights.length !== 1 ? 's' : ''}`}
+                    >
+                      <span>🔗 {link.highlights.length} highlight{link.highlights.length !== 1 ? 's' : ''}</span>
+                      <span className={`highlights-chevron ${showHighlights ? 'expanded' : ''}`}>
+                        ▼
+                      </span>
+                    </button>
+
+                    {showHighlights && (
+                      <div className="inbox-highlights-list" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                        {link.highlights.map((highlight) => (
+                          <HighlightCard
+                            key={highlight.id}
+                            highlight={highlight}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {link.aiSummary && (
+                  <div className="inbox-card-summary">
+                    <p>{link.aiSummary}</p>
+                  </div>
+                )}
+
+                {link.userNote && (
+                  <div className="inbox-card-note">
+                    <p>{link.userNote}</p>
+                  </div>
+                )}
+
+                {showTagInput && (
+                  <div className="inbox-card-tags">
+                    <TagInput
+                      linkId={link.id}
+                      onTagsUpdated={() => {
+                        onTagsUpdated();
+                        setShowTagInput(false);
+                      }}
+                      onCancel={() => setShowTagInput(false)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

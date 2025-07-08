@@ -73,11 +73,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   return true;
 });
 
-// Handle browser action clicks (this won't fire if there's a popup, but keeping for reference)
+// Handle browser action clicks - directly open sidebar
 chrome.action.onClicked.addListener(async (tab) => {
-  // This handler won't fire when a popup is defined in the manifest
-  // The popup will handle opening the side panel instead
-  console.log('Action clicked, but popup should handle this');
+  console.log('Extension icon clicked, opening sidebar...');
+  try {
+    if (tab.windowId) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      console.log('Sidebar opened successfully');
+    }
+  } catch (error) {
+    console.error('Failed to open sidebar:', error);
+  }
 });
 
 // Handle messages from content script and popup
@@ -93,6 +99,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse(result);
         } else {
           sendResponse({ success: false, error: 'No active tab found.' });
+        }
+      } else if (request.action === 'openSidePanel') {
+        try {
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tabs[0] && tabs[0].windowId) {
+            await chrome.sidePanel.open({ windowId: tabs[0].windowId });
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'No active window found.' });
+          }
+        } catch (error) {
+          console.error('Failed to open side panel:', error);
+          sendResponse({ success: false, error: (error as Error).message });
         }
       } else if (request.action === 'saveHighlight') {
         let tabToUse = null;
@@ -596,18 +615,32 @@ async function saveWithContext(tab: chrome.tabs.Tab, reason: string, tags: strin
 
 // Handle keyboard shortcuts (if configured in manifest)
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'save-page') {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]) {
-      await saveCurrentPage(tabs[0]);
-    }
-  } else if (command === 'open-command-palette') {
-    // Open the side panel to show command palette
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]) {
-      await chrome.sidePanel.open({ tabId: tabs[0].id });
-      // The sidepanel will handle opening the command palette via its own keyboard listener
-    }
+  console.log('Keyboard command received:', command);
+  
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tabs[0]) return;
+  
+  const tab = tabs[0];
+  
+  switch (command) {
+    case 'save-page':
+    case 'save-to-inbox':
+      await saveCurrentPage(tab);
+      break;
+    case 'open-command-palette':
+      // Send message to content script to open command palette
+      try {
+        await chrome.tabs.sendMessage(tab.id!, { action: 'openCommandPalette' });
+      } catch (error) {
+        console.log('Failed to open command palette from content script, trying sidepanel...');
+        // If content script fails, try to open sidepanel
+        try {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+        } catch (sideError) {
+          console.error('Failed to open sidepanel:', sideError);
+        }
+      }
+      break;
   }
 });
 

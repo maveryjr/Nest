@@ -9,6 +9,8 @@ const Popup: React.FC = () => {
 
   useEffect(() => {
     getCurrentTab();
+    // Automatically open sidebar when popup loads
+    openSidepanel();
   }, []);
 
   const getCurrentTab = async () => {

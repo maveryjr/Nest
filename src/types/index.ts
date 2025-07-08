@@ -2,34 +2,67 @@ export interface SavedLink {
   id: string;
   url: string;
   title: string;
-  description?: string;
-  savedAt: number;
-  tags: string[];
+  favicon?: string;
+  userNote: string;
+  aiSummary?: string;
   category: string;
-  isPrivate: boolean;
+  collectionId?: string;
+  isInInbox?: boolean;
   highlights?: Highlight[];
-  notes?: Note[];
-  crossReferences?: CrossReference[];
-  aiInsights?: AIInsight[];
+  createdAt: Date;
+  updatedAt: Date;
+  domain: string;
   readingTime?: number;
-  lastAccessed?: number;
-  accessCount?: number;
+  tags?: string[];
+  searchRank?: number;
+  searchHeadline?: string;
+  voiceMemos?: VoiceMemo[];
+  richNotes?: RichNote[];
+  readingProgress?: number; // 0-100
+  lastReadAt?: Date;
+  readingGoals?: string[]; // Goal IDs
+  collaborativeFeatures?: CollaborativeFeatures;
+  knowledgeGraphId?: string;
 }
 
 export interface Highlight {
   id: string;
-  text: string;
+  selectedText: string;
   context: string;
-  position: {
-    start: number;
-    end: number;
-    path: string;
-  };
-  url: string;
-  createdAt: number;
-  notes?: Note[];
-  crossReferences?: CrossReference[];
-  aiInsights?: AIInsight[];
+  position: any;
+  createdAt: Date;
+  updatedAt: Date;
+  userNote?: string;
+  voiceMemo?: VoiceMemo;
+  richNote?: RichNote;
+  tags?: string[];
+}
+
+export interface VoiceMemo {
+  id: string;
+  audioBlob?: Blob;
+  audioDataURL?: string;
+  duration: number; // in seconds
+  transcription?: string;
+  createdAt: Date;
+}
+
+export interface RichNote {
+  id: string;
+  content: string; // HTML content
+  plainText: string; // Plain text version
+  formatting: RichNoteFormatting;
+  lastEdited: Date;
+}
+
+export interface RichNoteFormatting {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  color?: string;
+  backgroundColor?: string;
+  fontSize?: number;
+  fontFamily?: string;
 }
 
 export interface Note {
@@ -105,13 +138,14 @@ export interface Collection {
   id: string;
   name: string;
   description?: string;
-  color?: string;
   createdAt: Date;
   updatedAt: Date;
+  color?: string;
+  icon?: string;
   isPublic?: boolean;
-  shareToken?: string;
-  viewCount?: number;
-  lastViewedAt?: Date;
+  tags?: string[];
+  collaborativeFeatures?: CollaborativeFeatures;
+  knowledgeGraphId?: string;
 }
 
 export interface PublicCollection {
@@ -270,4 +304,81 @@ export interface DigestSection {
   title: string;
   content: any[];
   aiSummary?: string;
+}
+
+export interface KnowledgeGraphNode {
+  id: string;
+  type: 'link' | 'highlight' | 'note' | 'tag';
+  title: string;
+  content: string;
+  url?: string;
+  position: { x: number; y: number };
+  connections: KnowledgeGraphConnection[];
+  metadata: Record<string, any>;
+}
+
+export interface KnowledgeGraphConnection {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: 'relates' | 'contradicts' | 'supports' | 'cites' | 'builds-on' | 'manual';
+  strength: number; // 0-1
+  label?: string;
+  userCreated: boolean;
+  createdAt: Date;
+}
+
+export interface CollaborativeFeatures {
+  teamId?: string;
+  permissions: UserPermission[];
+  sharedWith: string[]; // User IDs
+  isPublic: boolean;
+  collaborationHistory: CollaborationEvent[];
+}
+
+export interface UserPermission {
+  userId: string;
+  role: 'owner' | 'editor' | 'viewer';
+  permissions: string[];
+  grantedAt: Date;
+}
+
+export interface CollaborationEvent {
+  id: string;
+  userId: string;
+  action: 'created' | 'edited' | 'deleted' | 'shared' | 'commented';
+  targetType: 'link' | 'highlight' | 'collection' | 'note';
+  targetId: string;
+  changes?: Record<string, any>;
+  timestamp: Date;
+}
+
+export interface FocusMode {
+  enabled: boolean;
+  type: 'reading' | 'research' | 'distraction-free';
+  startTime: Date;
+  plannedDuration: number; // minutes
+  blockedSites: string[];
+  allowedSites: string[];
+  goals: string[];
+  customSettings: Record<string, any>;
+}
+
+export interface ReadingGoals {
+  daily: ReadingGoal;
+  weekly: ReadingGoal;
+  monthly: ReadingGoal;
+  custom: ReadingGoal[];
+}
+
+export interface ReadingGoal {
+  id: string;
+  type: 'links_saved' | 'articles_read' | 'highlights_made' | 'time_spent' | 'topics_explored';
+  target: number;
+  current: number;
+  period: 'daily' | 'weekly' | 'monthly' | 'custom';
+  startDate: Date;
+  endDate: Date;
+  isActive: boolean;
+  rewards?: string[];
 } 

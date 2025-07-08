@@ -10,6 +10,7 @@ interface SearchResultCardProps {
   onMoveToCollection: (linkId: string, collectionId: string) => void;
   onAddNote: (link: SavedLink) => void;
   onTagsUpdated?: () => void;
+  compactView?: boolean;
 }
 
 const SearchResultCard: React.FC<SearchResultCardProps> = ({
@@ -19,7 +20,8 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
   onDelete,
   onMoveToCollection,
   onAddNote,
-  onTagsUpdated
+  onTagsUpdated,
+  compactView = false
 }) => {
   const formatSearchRank = (rank?: number) => {
     if (!rank) return '';
@@ -52,6 +54,7 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
         onMoveToCollection={onMoveToCollection}
         onAddNote={onAddNote}
         onTagsUpdated={onTagsUpdated}
+        compactView={compactView}
       />
     </div>
   );
