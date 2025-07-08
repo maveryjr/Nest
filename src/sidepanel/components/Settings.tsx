@@ -86,7 +86,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         autoTagging: savedSettings.autoTagging ?? data.settings.autoTagging ?? false,
         autoCategorization: savedSettings.autoCategorization ?? data.settings.autoCategorization ?? false,
         openaiApiKey: savedSettings.openaiApiKey ?? data.settings.openaiApiKey ?? '',
-        newTabEnabled: newTabResult.nest_newtab_enabled === true,
+        newTabEnabled: newTabResult.nest_newtab_enabled !== false,
         highlightColor: savedSettings.highlightColor ?? data.settings.highlightColor ?? 'yellow',
         highlightStyle: savedSettings.highlightStyle ?? data.settings.highlightStyle ?? 'gradient'
       });

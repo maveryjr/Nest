@@ -49,7 +49,6 @@ const Sidepanel: React.FC = () => {
   const [expandedSections, setExpandedSections] = useState({
     inbox: true,
     smartCollections: true,
-    holdingArea: true,
     collections: true
   });
   const [selectedLink, setSelectedLink] = useState<SavedLink | null>(null);
@@ -554,7 +553,7 @@ const Sidepanel: React.FC = () => {
             if (bestCollectionId && bestMatch > 0.6) {
               await storage.moveFromInbox(link.id, bestCollectionId);
             } else {
-              // Otherwise just move to holding area with updates
+              // Otherwise just move to uncategorized with updates
               await storage.moveFromInbox(link.id);
               if (Object.keys(updates).length > 0) {
                 await storage.updateLink(link.id, updates);
@@ -642,7 +641,7 @@ const Sidepanel: React.FC = () => {
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'Tabs Saved to Nest',
-      message: `Saved ${tabs.length} tab(s) ${toInbox ? 'to inbox' : collectionId ? 'to collection' : 'to holding area'}`
+              message: `Saved ${tabs.length} tab(s) ${toInbox ? 'to inbox' : collectionId ? 'to collection' : 'to uncategorized'}`
     });
   };
 
@@ -815,12 +814,12 @@ const Sidepanel: React.FC = () => {
   // Get filtered links (excluding inbox items)
   const filteredLinks = data.links.filter(link => !link.isInInbox);
 
-  // Get holding area links (items without specific collection)
-  const holdingAreaLinks = filteredLinks.filter(link => !link.collectionId);
+  // Get uncategorized links (items without specific collection)
+  const uncategorizedLinks = filteredLinks.filter(link => !link.collectionId);
 
-  // AI Auto-Organize for Holding Area
+  // AI Auto-Organize for Uncategorized Links
   const handleAIAutoOrganizeHolding = async () => {
-    if (holdingAreaLinks.length === 0 || isAIOrganizingHolding) return;
+    if (uncategorizedLinks.length === 0 || isAIOrganizingHolding) return;
     
     setIsAIOrganizingHolding(true);
     
@@ -838,8 +837,8 @@ const Sidepanel: React.FC = () => {
       // Get user's existing collections
       const collections = data.collections;
       
-      // Process each holding area link
-      const organizePromises = holdingAreaLinks.map(async (link) => {
+      // Process each uncategorized link
+      const organizePromises = uncategorizedLinks.map(async (link) => {
         try {
           // Request AI analysis using the new analyzeLinkContent action
           const analysisResponse = await chrome.runtime.sendMessage({
@@ -999,7 +998,7 @@ const Sidepanel: React.FC = () => {
         type: 'basic',
         iconUrl: 'icons/icon48.png',
         title: 'AI Auto-Organize Complete',
-        message: `Organized ${successful} items from holding area${failed > 0 ? `, ${failed} failed` : ''}`
+        message: `Organized ${successful} items from uncategorized${failed > 0 ? `, ${failed} failed` : ''}`
       });
 
       // Refresh data
@@ -1255,7 +1254,7 @@ const Sidepanel: React.FC = () => {
             )}
           </div>
         ) : (
-          /* Normal View - Inbox, Holding Area and Collections */
+                      /* Normal View - Inbox, Uncategorized Links and Collections */
           <>
             {/* Inbox Section */}
             <div className="section inbox-section">
@@ -1296,10 +1295,10 @@ const Sidepanel: React.FC = () => {
                         <button
                           onClick={() => handleBulkMoveFromInbox()}
                           className="inbox-action-button"
-                          title="Move selected to holding area"
+                          title="Move selected to uncategorized (no specific collection)"
                         >
                           <Archive size={14} />
-                          Move to Holding ({selectedInboxLinks.length})
+                          Move to Uncategorized ({selectedInboxLinks.length})
                         </button>
                         <select
                           onChange={(e) => {
@@ -1391,64 +1390,6 @@ const Sidepanel: React.FC = () => {
               </div>
             )}
 
-            {/* Holding Area */}
-            <div className="section">
-              <div className="inbox-section-header">
-                <div className="inbox-section-title">
-                  <button
-                    onClick={() => toggleSection('holdingArea')}
-                    className="section-header"
-                  >
-                    {expandedSections.holdingArea ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    <span>Holding Area</span>
-                    <span className="count">{holdingAreaLinks.length}</span>
-                  </button>
-                </div>
-                
-                {holdingAreaLinks.length > 0 && (
-                  <div className="inbox-actions">
-                    <button
-                      onClick={handleAIAutoOrganizeHolding}
-                      className="inbox-action-button"
-                      title="Use AI to automatically organize items into collections"
-                      disabled={holdingAreaLinks.length === 0 || isAIOrganizingHolding}
-                    >
-                      <Sparkles size={14} className={isAIOrganizingHolding ? 'spinning' : ''} />
-                      {isAIOrganizingHolding ? 'Organizing...' : 'AI Auto-Organize'}
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              {expandedSections.holdingArea && (
-                <div className="section-content">
-                  {holdingAreaLinks.length === 0 ? (
-                    <div className="empty-state">
-                      <p>No links in holding area</p>
-                      <p style={{ fontSize: '0.9em', color: 'var(--ui-text-secondary)', marginTop: '0.5rem' }}>
-                        Links without a specific collection will appear here
-                      </p>
-                    </div>
-                  ) : (
-                    holdingAreaLinks.map(link => (
-                      <LinkCard
-                        key={link.id}
-                        link={link}
-                        collections={data.collections}
-                        onUpdate={handleUpdateLink}
-                        onDelete={handleDeleteLink}
-                        onMoveToCollection={handleMoveToCollection}
-                        onAddNote={handleAddNote}
-                        onTagsUpdated={handleTagsUpdated}
-                        onOpenDetail={handleOpenLinkDetail}
-                        compactView={compactView}
-                      />
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Collections */}
             <div className="section">
               <button
@@ -1457,7 +1398,7 @@ const Sidepanel: React.FC = () => {
               >
                 {expandedSections.collections ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 <span>Collections</span>
-                <span className="count">{data.collections.length}</span>
+                <span className="count">{data.collections.length + (uncategorizedLinks.length > 0 ? 1 : 0)}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1472,7 +1413,52 @@ const Sidepanel: React.FC = () => {
 
               {expandedSections.collections && (
                 <div className="section-content">
-                  {data.collections.length === 0 ? (
+                                {/* Uncategorized Links */}
+              {uncategorizedLinks.length > 0 && (
+                    <div className="uncategorized-section">
+                      <div className="collection-header uncategorized-header">
+                        <div className="collection-info">
+                          <h3 className="collection-name">
+                            <Archive size={16} style={{ marginRight: '8px' }} />
+                            Uncategorized Links
+                          </h3>
+                          <span className="collection-description">
+                            Links not yet organized into collections
+                          </span>
+                        </div>
+                        <div className="collection-actions">
+                          <span className="collection-count">{uncategorizedLinks.length}</span>
+                          <button
+                            onClick={handleAIAutoOrganizeHolding}
+                            className="action-button"
+                            title="Use AI to automatically organize into collections"
+                            disabled={isAIOrganizingHolding}
+                          >
+                            <Sparkles size={14} className={isAIOrganizingHolding ? 'spinning' : ''} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="collection-content">
+                        {uncategorizedLinks.map(link => (
+                          <LinkCard
+                            key={link.id}
+                            link={link}
+                            collections={data.collections}
+                            onUpdate={handleUpdateLink}
+                            onDelete={handleDeleteLink}
+                            onMoveToCollection={handleMoveToCollection}
+                            onAddNote={handleAddNote}
+                            onTagsUpdated={handleTagsUpdated}
+                            onOpenDetail={handleOpenLinkDetail}
+                            compactView={compactView}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Regular Collections */}
+                  {data.collections.length === 0 && uncategorizedLinks.length === 0 ? (
                     <div className="empty-state">
                       <p>No collections yet</p>
                       <button

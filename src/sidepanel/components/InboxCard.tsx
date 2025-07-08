@@ -17,6 +17,12 @@ import HighlightCard from './HighlightCard';
 import AISuggestions from './AISuggestions';
 import { storage } from '../../utils/storage';
 
+interface LinkTag {
+  id: string;
+  name: string;
+  usageCount?: number;
+}
+
 interface InboxCardProps {
   link: SavedLink;
   collections: Collection[];
@@ -51,8 +57,62 @@ const InboxCard: React.FC<InboxCardProps> = ({
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [linkTags, setLinkTags] = useState<LinkTag[]>([]);
+  const [availableTags, setAvailableTags] = useState<LinkTag[]>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ 
+    top: 0, 
+    left: 0, 
+    positionUp: false, 
+    positionLeft: false 
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load tags when tag input is opened
+  React.useEffect(() => {
+    if (showTagInput) {
+      loadTags();
+    }
+  }, [showTagInput, link.id]);
+
+  const loadTags = async () => {
+    setLoadingTags(true);
+    try {
+      const [linkTagsData, availableTagsData] = await Promise.all([
+        storage.getLinkTags(link.id),
+        storage.getUserTags()
+      ]);
+      
+      setLinkTags(linkTagsData.map(tag => ({ ...tag, usageCount: 0 })));
+      setAvailableTags(availableTagsData);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+
+  const handleTagsChange = async (newTags: LinkTag[]) => {
+    try {
+      const tagNames = newTags.map(tag => tag.name);
+      const result = await storage.addTagsToLink(link.id, tagNames);
+      
+      if (result.success) {
+        setLinkTags(newTags);
+        // Refresh available tags to update usage counts
+        const updatedTags = await storage.getUserTags();
+        setAvailableTags(updatedTags);
+        
+        // Notify parent component that tags were updated
+        onTagsUpdated();
+        setShowTagInput(false);
+      } else {
+        console.error('Failed to update tags:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to update link tags:', error);
+    }
+  };
 
   const handleOpenLink = () => {
     onOpenDetail(link);
@@ -70,13 +130,34 @@ const InboxCard: React.FC<InboxCardProps> = ({
     e.stopPropagation();
     
     if (!showMenu) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const newPosition = {
-        top: rect.bottom + 4,
-        left: rect.right - 180 // Align right edge of menu with button
-      };
-      console.log('Setting menu position:', newPosition);
-      setMenuPosition(newPosition);
+      // Check if the dropdown would overflow the viewport or sidebar content area
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 240; // Approximate height
+      
+      // Find the sidebar content container to check for overflow
+      const sidebarContent = document.querySelector('.content');
+      const sidebarRect = sidebarContent?.getBoundingClientRect();
+      
+      // Determine if we need special positioning classes
+      let shouldPositionUp = buttonRect.bottom + dropdownHeight > viewportHeight;
+      
+      // Also check if we'd overflow the sidebar content area
+      if (sidebarRect) {
+        shouldPositionUp = shouldPositionUp || (buttonRect.bottom + dropdownHeight > sidebarRect.bottom);
+      }
+      
+      // Check if dropdown would overflow right edge - if so, position it to the left of the button
+      const dropdownWidth = 200; // Approximate dropdown width
+      const shouldPositionLeft = buttonRect.right + dropdownWidth > window.innerWidth;
+      
+      // Set CSS classes for positioning instead of manual coordinates
+      setMenuPosition({ 
+        top: 0, 
+        left: 0, 
+        positionUp: shouldPositionUp,
+        positionLeft: shouldPositionLeft 
+      });
     }
     setShowMenu(!showMenu);
     setShowCollectionsSubmenu(false);
@@ -238,7 +319,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
                 <MoreVertical size={14} />
               </button>
               {showMenu && (
-                <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                <div className={`dropdown-menu ${menuPosition.positionUp ? 'position-up' : ''} ${menuPosition.positionLeft ? 'position-left' : ''}`}>
                   <button
                     onClick={handleAISuggestionsClick}
                     className="dropdown-menu-item"
@@ -350,7 +431,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
                     </button>
 
                     {showMenu && (
-                      <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                      <div className={`dropdown-menu ${menuPosition.positionUp ? 'position-up' : ''} ${menuPosition.positionLeft ? 'position-left' : ''}`}>
                         <button
                           onClick={handleAISuggestionsClick}
                           className="dropdown-menu-item"
@@ -494,14 +575,25 @@ const InboxCard: React.FC<InboxCardProps> = ({
 
                 {showTagInput && (
                   <div className="inbox-card-tags">
-                    <TagInput
-                      linkId={link.id}
-                      onTagsUpdated={() => {
-                        onTagsUpdated();
-                        setShowTagInput(false);
-                      }}
-                      onCancel={() => setShowTagInput(false)}
-                    />
+                    <div className="tag-editor-header">
+                      <span>Edit Tags</span>
+                      <button 
+                        onClick={() => setShowTagInput(false)}
+                        className="tag-editor-close"
+                        title="Close tag editor"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    {loadingTags ? (
+                      <div className="tag-editor-loading">Loading tags...</div>
+                    ) : (
+                      <TagInput
+                        selectedTags={linkTags}
+                        availableTags={availableTags}
+                        onTagsChange={handleTagsChange}
+                      />
+                    )}
                   </div>
                 )}
               </div>
