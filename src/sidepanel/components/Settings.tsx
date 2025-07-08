@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, User, Palette, Database, Share2, Cog, Info, 
   Download, Trash2, Eye, EyeOff, Mail, Calendar,
-  Tag, FileText, BarChart3, ExternalLink, HelpCircle, Sparkles
+  Tag, FileText, BarChart3, ExternalLink, HelpCircle, Sparkles,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { storage } from '../../utils/storage';
 import { supabase } from '../../utils/supabase';
@@ -40,7 +41,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     autoTagging: false,
     autoCategorization: false,
     openaiApiKey: '',
-    newTabEnabled: true
+    newTabEnabled: true,
+    highlightColor: 'yellow',
+    highlightStyle: 'gradient'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,18 +69,26 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const loadSettings = async () => {
     try {
       const data = await storage.getData();
-      const result = await chrome.storage.local.get('nest_newtab_enabled');
+      const [newTabResult, settingsResult] = await Promise.all([
+        chrome.storage.local.get('nest_newtab_enabled'),
+        chrome.storage.local.get('nest_settings')
+      ]);
+      
+      const savedSettings = settingsResult.nest_settings || {};
+      
       setSettings({
-        autoSummarize: data.settings.autoSummarize,
-        defaultCategory: data.settings.defaultCategory,
+        autoSummarize: savedSettings.autoSummarize ?? data.settings.autoSummarize ?? true,
+        defaultCategory: data.settings.defaultCategory || 'general',
         defaultPrivacy: false,
         showTooltips: true,
         compactView: false,
         darkMode: false,
-        autoTagging: data.settings.autoTagging,
-        autoCategorization: data.settings.autoCategorization,
-        openaiApiKey: data.settings.openaiApiKey,
-        newTabEnabled: result.nest_newtab_enabled !== false
+        autoTagging: savedSettings.autoTagging ?? data.settings.autoTagging ?? false,
+        autoCategorization: savedSettings.autoCategorization ?? data.settings.autoCategorization ?? false,
+        openaiApiKey: savedSettings.openaiApiKey ?? data.settings.openaiApiKey ?? '',
+        newTabEnabled: newTabResult.nest_newtab_enabled !== false,
+        highlightColor: savedSettings.highlightColor ?? data.settings.highlightColor ?? 'yellow',
+        highlightStyle: savedSettings.highlightStyle ?? data.settings.highlightStyle ?? 'gradient'
       });
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -122,12 +133,38 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         await chrome.storage.local.set({ 'nest_newtab_enabled': newSettings.newTabEnabled });
       }
       
-      // Here you would save other settings to your backend/storage
-      // For now, we'll just update local state
+      // Save other settings to the main storage system
+      const currentData = await storage.getData();
+      const updatedData = {
+        ...currentData,
+        settings: {
+          ...currentData.settings,
+          autoSummarize: newSettings.autoSummarize,
+          autoTagging: newSettings.autoTagging,
+          autoCategorization: newSettings.autoCategorization,
+          openaiApiKey: newSettings.openaiApiKey,
+          highlightColor: newSettings.highlightColor,
+          highlightStyle: newSettings.highlightStyle
+        }
+      };
+      
+      // Save to Chrome storage for persistence
+      await chrome.storage.local.set({
+        'nest_settings': {
+          autoSummarize: newSettings.autoSummarize,
+          autoTagging: newSettings.autoTagging,
+          autoCategorization: newSettings.autoCategorization,
+          openaiApiKey: newSettings.openaiApiKey,
+          highlightColor: newSettings.highlightColor,
+          highlightStyle: newSettings.highlightStyle
+        }
+      });
+      
       setSettings(newSettings);
       setMessage('Settings saved successfully!');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
+      console.error('Failed to save settings:', error);
       setMessage('Failed to save settings');
     } finally {
       setSaving(false);
@@ -185,6 +222,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     }
   };
 
+  const updateSetting = (key: string, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
     { id: 'preferences', label: 'Preferences', icon: Palette },
@@ -196,309 +237,330 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div className="modal-overlay">
-        <div className="modal-content settings-modal">
-          <div className="modal-header">
-            <h2 className="modal-title">Settings</h2>
-            <button onClick={onClose} className="modal-close-button" title="Close">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="settings-content">
-            <div className="loading-spinner" style={{margin: 'auto'}}>Loading settings...</div>
-          </div>
+      <div className="settings-sidebar">
+        <div className="settings-header">
+          <button onClick={onClose} className="settings-back-button">
+            <ChevronLeft size={20} />
+          </button>
+          <h2>Settings</h2>
+        </div>
+        <div className="settings-loading">
+          <div className="loading-spinner">Loading settings...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content settings-modal">
-        <div className="settings-content">
-          <div className="settings-tabs">
-            <div style={{ padding: 'var(--space-1)', marginBottom: 'var(--space-4)' }}>
-              <h2 className="modal-title">Settings</h2>
+    <div className="settings-sidebar">
+      <div className="settings-header">
+        <button onClick={onClose} className="settings-back-button">
+          <ChevronLeft size={20} />
+        </button>
+        <h2>Settings</h2>
+      </div>
+
+      <div className="settings-tabs-horizontal">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`settings-tab-horizontal ${activeTab === tab.id ? 'active' : ''}`}
+              title={tab.label}
+            >
+              <Icon size={16} />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="settings-content-sidebar">
+        {activeTab === 'account' && (
+          <div className="settings-section">
+            <h3>Account</h3>
+            <div className="account-info">
+              <div className="account-item">
+                <Mail size={16} />
+                <div>
+                  <div className="account-label">Email</div>
+                  <div className="account-value">{userEmail}</div>
+                </div>
+              </div>
             </div>
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+
+            <h3>Statistics</h3>
+            <div className="stats-grid-sidebar">
+              <div className="stat-card-sidebar">
+                <div className="stat-number">{userStats.linkCount}</div>
+                <div className="stat-label">Links</div>
+              </div>
+              <div className="stat-card-sidebar">
+                <div className="stat-number">{userStats.collectionCount}</div>
+                <div className="stat-label">Collections</div>
+              </div>
+              <div className="stat-card-sidebar">
+                <div className="stat-number">{userStats.tagCount}</div>
+                <div className="stat-label">Tags</div>
+              </div>
+              <div className="stat-card-sidebar">
+                <div className="stat-number">{userStats.totalViews}</div>
+                <div className="stat-label">Views</div>
+              </div>
+            </div>
+            
+            <div className="setting-actions">
+              <button onClick={handleLogout} className="button danger">
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'preferences' && (
+          <div className="settings-content">
+            <div className="settings-section">
+              <h3>General Preferences</h3>
+              
+              <div className="setting-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.autoSummarize}
+                    onChange={(e) => setSettings({...settings, autoSummarize: e.target.checked})}
+                  />
+                  Auto-summarize saved links
+                </label>
+                <p className="setting-description">
+                  Automatically generate AI summaries for saved links
+                </p>
+              </div>
+
+              <div className="setting-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.autoTagging}
+                    onChange={(e) => setSettings({...settings, autoTagging: e.target.checked})}
+                  />
+                  Auto-tag saved links
+                </label>
+                <p className="setting-description">
+                  Automatically suggest tags based on content
+                </p>
+              </div>
+
+              <div className="setting-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.autoCategorization}
+                    onChange={(e) => setSettings({...settings, autoCategorization: e.target.checked})}
+                  />
+                  Auto-categorize saved links
+                </label>
+                <p className="setting-description">
+                  Automatically categorize links based on content and domain
+                </p>
+              </div>
+
+              <div className="setting-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.newTabEnabled}
+                    onChange={(e) => setSettings({...settings, newTabEnabled: e.target.checked})}
+                  />
+                  Override new tab page
+                </label>
+                <p className="setting-description">
+                  Replace Chrome's new tab page with Nest
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Highlight Settings</h3>
+              <div className="setting-item">
+                <label htmlFor="highlight-color">Highlight Color</label>
+                <select
+                  id="highlight-color"
+                  value={settings.highlightColor || 'yellow'}
+                  onChange={(e) => updateSetting('highlightColor', e.target.value)}
+                  className="setting-select"
                 >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-            <div style={{ marginTop: 'auto', paddingTop: 'var(--space-4)'}}>
-                <button onClick={onClose} className="button" style={{width: '100%'}}>
-                    Close
-                </button>
+                  <option value="yellow">Yellow</option>
+                  <option value="blue">Blue</option>
+                  <option value="green">Green</option>
+                  <option value="pink">Pink</option>
+                  <option value="purple">Purple</option>
+                  <option value="orange">Orange</option>
+                  <option value="red">Red</option>
+                </select>
+              </div>
+              
+              <div className="setting-item">
+                <label htmlFor="highlight-style">Highlight Style</label>
+                <select
+                  id="highlight-style"
+                  value={settings.highlightStyle || 'gradient'}
+                  onChange={(e) => updateSetting('highlightStyle', e.target.value)}
+                  className="setting-select"
+                >
+                  <option value="gradient">Gradient</option>
+                  <option value="solid">Solid</option>
+                  <option value="underline">Underline</option>
+                  <option value="outline">Outline</option>
+                </select>
+              </div>
+              
+              <div className="setting-description">
+                Choose your preferred highlight color and style for visual text highlighting on supported websites.
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Advanced</h3>
+              <div className="setting-item">
+                <label htmlFor="openai-key">OpenAI API Key</label>
+                <input
+                  id="openai-key"
+                  type="password"
+                  value={settings.openaiApiKey || ''}
+                  onChange={(e) => updateSetting('openaiApiKey', e.target.value)}
+                  placeholder="sk-..."
+                  className="setting-input"
+                />
+                <p className="setting-description">
+                  For enhanced AI features like auto-summarization and tagging
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-actions">
+              <button
+                onClick={() => saveSettings(settings)}
+                disabled={saving}
+                className="save-button"
+              >
+                {saving ? 'Saving...' : 'Save Preferences'}
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="settings-panel">
-            {activeTab === 'account' && (
-              <div className="settings-section">
-                <h3>Account Information</h3>
-                <div className="setting-group">
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <Mail size={16} />
-                      <div>
-                        <div className="setting-label">Email Address</div>
-                        <div className="setting-description">{userEmail}</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="setting-item">
-                    <div className="setting-info">
-                      <Calendar size={16} />
-                      <div>
-                        <div className="setting-label">Account Created</div>
-                        <div className="setting-description">Connected via Supabase</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <h3>Statistics</h3>
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-number">{userStats.linkCount}</div>
-                    <div className="stat-label">Links Saved</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{userStats.collectionCount}</div>
-                    <div className="stat-label">Collections</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{userStats.tagCount}</div>
-                    <div className="stat-label">Tags Used</div>
-                  </div>
-                   <div className="stat-card">
-                    <div className="stat-number">{userStats.totalViews}</div>
-                    <div className="stat-label">Total Views</div>
-                  </div>
-                </div>
-                 <div className="setting-actions" style={{marginTop: 'var(--space-5)'}}>
-                  <button onClick={handleLogout} className="button danger">
-                    Logout
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'preferences' && (
-              <div className="settings-section">
-                <h3>Preferences</h3>
-                <div className="setting-group">
-                    <div className="setting-item">
-                        <div className="setting-info">
-                            <div className="setting-label">Auto-summarize Links</div>
-                        </div>
-                        <label className="toggle-switch">
-                        <input
-                            type="checkbox"
-                            checked={settings.autoSummarize}
-                            onChange={(e) => saveSettings({ ...settings, autoSummarize: e.target.checked })}
-                            disabled={saving}
-                            aria-label="Auto-summarize Links"
-                        />
-                        <span className="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div className="setting-item">
-                        <div className="setting-info">
-                            <div className="setting-label">Auto-tagging</div>
-                        </div>
-                        <label className="toggle-switch">
-                        <input
-                            type="checkbox"
-                            checked={settings.autoTagging || false}
-                            onChange={(e) => saveSettings({ ...settings, autoTagging: e.target.checked })}
-                            disabled={saving}
-                            aria-label="Auto-tagging"
-                        />
-                        <span className="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div className="setting-item">
-                        <div className="setting-info">
-                            <div className="setting-label">Auto-categorization</div>
-                        </div>
-                        <label className="toggle-switch">
-                        <input
-                            type="checkbox"
-                            checked={settings.autoCategorization || false}
-                            onChange={(e) => saveSettings({ ...settings, autoCategorization: e.target.checked })}
-                            disabled={saving}
-                            aria-label="Auto-categorization"
-                        />
-                        <span className="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div className="setting-item">
-                        <div className="setting-info">
-                            <div>
-                                <div className="setting-label">New Tab Home</div>
-                                <div className="setting-description">Replace new tab page with Nest home interface</div>
-                            </div>
-                        </div>
-                        <label className="toggle-switch">
-                        <input
-                            type="checkbox"
-                            checked={settings.newTabEnabled}
-                            onChange={(e) => saveSettings({ ...settings, newTabEnabled: e.target.checked })}
-                            disabled={saving}
-                            aria-label="New Tab Home"
-                        />
-                        <span className="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-                <h3 style={{marginTop: 'var(--space-5)'}}>Advanced</h3>
-                <div className="setting-group">
-                    <div className="setting-item">
-                        <div className="setting-info">
-                            <div>
-                                <div className="setting-label">OpenAI API Key</div>
-                                <div className="setting-description">Used for enhanced AI features.</div>
-                            </div>
-                        </div>
-                        <input
-                            type="password"
-                            value={settings.openaiApiKey || ''}
-                            onChange={(e) => saveSettings({ ...settings, openaiApiKey: e.target.value })}
-                            placeholder="sk-..."
-                            className="form-control"
-                            style={{width: '200px'}}
-                            disabled={saving}
-                        />
-                    </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'digest' && (
-              <div className="settings-section">
-                <DigestSettings />
-              </div>
-            )}
-
-            {activeTab === 'data' && (
-                <div className="settings-section">
-                    <h3>Data Management</h3>
-                    <div className="setting-group">
-                        <div className="setting-item">
-                            <div className="setting-info">
-                                <Download size={16} />
-                                <div>
-                                    <div className="setting-label">Export Data</div>
-                                    <div className="setting-description">Download all your data as a JSON file.</div>
-                                </div>
-                            </div>
-                            <button onClick={handleExportData} className="button">Export</button>
-                        </div>
-                        <div className="setting-item">
-                            <div className="setting-info">
-                                <Trash2 size={16} />
-                                <div>
-                                    <div className="setting-label">Cleanup Unused Tags</div>
-                                    <div className="setting-description">Remove any tags that are not associated with any links.</div>
-                                </div>
-                            </div>
-                            <button onClick={handleCleanupTags} className="button danger">Cleanup</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'sharing' && (
-              <div className="settings-section">
-                <h3>Sharing & Privacy</h3>
-                <div className="setting-group">
-                  <div className="setting-item">
-                    <div className="setting-info">
-                        <div>
-                            <div className="setting-label">Default Collection Privacy</div>
-                            <div className="setting-description">Make new collections public by default</div>
-                        </div>
-                    </div>
-                    <label className="toggle-switch" title="Toggle default privacy">
-                      <input
-                        type="checkbox"
-                        checked={settings.defaultPrivacy}
-                        onChange={(e) => saveSettings({ ...settings, defaultPrivacy: e.target.checked })}
-                        disabled={saving}
-                        aria-label="Default collection privacy"
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-                 <div className="sharing-stats" style={{marginTop: 'var(--space-5)'}}>
-                  <h4>Sharing Analytics</h4>
-                   <div className="stats-grid">
-                        <div className="stat-card">
-                            <div className="stat-number">{userStats.publicCollections}</div>
-                            <div className="stat-label">Public collections</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-number">{userStats.totalViews}</div>
-                            <div className="stat-label">Total views</div>
-                        </div>
-                    </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'about' && (
-              <div className="settings-section">
-                <h3>About Nest</h3>
-                <div className="about-info">
-                  <div className="app-info">
-                    <div className="app-logo">N</div>
-                    <div>
-                      <div className="app-name">Nest - Smart Bookmarks & Notes</div>
-                      <div className="app-version">Version 1.0.0</div>
-                    </div>
-                  </div>
-                  <p className="app-description">
-                    Nest is a powerful browser extension that helps you save, organize, and share your bookmarks 
-                    with AI-powered summaries, flexible tagging, and beautiful collections.
-                  </p>
-                </div>
-                <div className="support-links">
-                  <h4>Support & Resources</h4>
-                  <div className="link-grid">
-                    <a href="https://github.com" target="_blank" rel="noopener" className="support-link">
-                      <ExternalLink size={16} />
-                      <span>Documentation</span>
-                    </a>
-                    <a href="https://github.com/issues" target="_blank" rel="noopener" className="support-link">
-                      <HelpCircle size={16} />
-                      <span>Report Issues</span>
-                    </a>
-                    <a href="mailto:support@nest.dev" className="support-link">
-                      <Mail size={16} />
-                      <span>Contact Support</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {message && (
-                <div className={`settings-message ${message.includes('Failed') ? 'error' : 'success'}`}>
-                    {message}
-                </div>
-            )}
+        {activeTab === 'digest' && (
+          <div className="settings-section">
+            <DigestSettings />
           </div>
-        </div>
+        )}
+
+        {activeTab === 'data' && (
+          <div className="settings-section">
+            <h3>Data Management</h3>
+            <div className="setting-list">
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <Download size={16} />
+                  <div>
+                    <div className="setting-label">Export Data</div>
+                    <div className="setting-description">Download all your data</div>
+                  </div>
+                </div>
+                <button onClick={handleExportData} className="button-small">Export</button>
+              </div>
+              
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <Trash2 size={16} />
+                  <div>
+                    <div className="setting-label">Cleanup Tags</div>
+                    <div className="setting-description">Remove unused tags</div>
+                  </div>
+                </div>
+                <button onClick={handleCleanupTags} className="button-small danger">Cleanup</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'sharing' && (
+          <div className="settings-section">
+            <h3>Sharing & Privacy</h3>
+            <div className="setting-list">
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Default Privacy</div>
+                  <div className="setting-description">Make collections public by default</div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.defaultPrivacy}
+                    onChange={(e) => saveSettings({ ...settings, defaultPrivacy: e.target.checked })}
+                    disabled={saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <h3>Analytics</h3>
+            <div className="stats-grid-sidebar">
+              <div className="stat-card-sidebar">
+                <div className="stat-number">{userStats.publicCollections}</div>
+                <div className="stat-label">Public collections</div>
+              </div>
+              <div className="stat-card-sidebar">
+                <div className="stat-number">{userStats.totalViews}</div>
+                <div className="stat-label">Total views</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'about' && (
+          <div className="settings-section">
+            <h3>About Nest</h3>
+            <div className="about-info-sidebar">
+              <div className="app-info-sidebar">
+                <div className="app-logo-sidebar">N</div>
+                <div>
+                  <div className="app-name">Nest</div>
+                  <div className="app-version">Version 1.0.0</div>
+                </div>
+              </div>
+              <p className="app-description">
+                Smart bookmarks & notes with AI-powered summaries and flexible organization.
+              </p>
+            </div>
+            
+            <div className="support-links-sidebar">
+              <h4>Support</h4>
+              <div className="support-link-list">
+                <a href="https://github.com" target="_blank" rel="noopener" className="support-link-sidebar">
+                  <ExternalLink size={14} />
+                  <span>Documentation</span>
+                </a>
+                <a href="https://github.com/issues" target="_blank" rel="noopener" className="support-link-sidebar">
+                  <HelpCircle size={14} />
+                  <span>Report Issues</span>
+                </a>
+                <a href="mailto:support@nest.dev" className="support-link-sidebar">
+                  <Mail size={14} />
+                  <span>Contact Support</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {message && (
+          <div className={`settings-message ${message.includes('Failed') ? 'error' : 'success'}`}>
+            {message}
+          </div>
+        )}
       </div>
     </div>
   );

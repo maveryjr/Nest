@@ -1,5 +1,5 @@
 // AI utility functions for summarization, tagging, and categorization
-import { AITagSuggestion, AICategorySuggestion, AIAnalysisResult } from '../types';
+import { AITagSuggestion, AICategorySuggestion, AIAnalysisResult, SavedLink, Highlight, AIInsight, CrossReference, KnowledgeGraph, KnowledgeNode, KnowledgeEdge } from '../types';
 
 export interface AIConfig {
   apiKey?: string;
@@ -794,4 +794,308 @@ Content: ${content.substring(0, 1000)}...`;
   }
 }
 
-export const aiService = new AIService(); 
+// Factory function to create AI service (for new features)
+export const createAIService = (apiKey?: string) => {
+  if (apiKey) {
+    return new OpenAIService(apiKey);
+  }
+  
+  // Return a no-op service if no API key
+  return {
+    async generateInsights() { return []; },
+    async generateQuestions() { return []; },
+    async generateFlashcards() { return []; },
+    async findCrossReferences() { return []; },
+    async generateRecommendations() { return []; },
+    async updateKnowledgeGraph(items: any[]) { 
+      return { nodes: [], edges: [], lastUpdated: Date.now() }; 
+    },
+    async extractKeyTopics() { return []; },
+    calculateKnowledgeGrowth() { return 0; }
+  };
+};
+
+// OpenAI service implementation for new features
+class OpenAIService {
+  private apiKey: string;
+  private baseURL = 'https://api.openai.com/v1';
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  async generateInsights(item: any): Promise<any[]> {
+    if (!this.apiKey) return [];
+
+    try {
+      const content = 'text' in item ? item.text : `${item.title} - ${item.description || ''}`;
+      const url = 'url' in item ? item.url : (item as any).url;
+
+      const prompt = `Analyze this content and generate 3 types of insights:
+1. A thought-provoking question
+2. A key summary point
+3. A potential connection to other topics
+
+Content: "${content}"
+URL: ${url}
+
+Return as JSON array with objects containing: type, content, metadata`;
+
+      const insights = await this.callOpenAI(prompt);
+      return this.parseInsights(insights);
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      return [];
+    }
+  }
+
+  async generateQuestions(content: string, difficulty: string = 'medium'): Promise<any[]> {
+    if (!this.apiKey) return [];
+
+    try {
+      const prompt = `Generate 3 ${difficulty} level questions based on this content that would help with retention and understanding:
+
+Content: "${content}"
+
+Questions should be:
+- ${difficulty === 'easy' ? 'Recall-based, asking for basic facts' : ''}
+- ${difficulty === 'medium' ? 'Application-based, asking how concepts apply' : ''}
+- ${difficulty === 'hard' ? 'Analysis-based, asking for evaluation and synthesis' : ''}
+
+Return as JSON array with type: "question", content: "the question", metadata: {difficulty, topic}`;
+
+      const response = await this.callOpenAI(prompt);
+      return this.parseInsights(response);
+    } catch (error) {
+      console.error('Error generating questions:', error);
+      return [];
+    }
+  }
+
+  async generateFlashcards(content: string): Promise<any[]> {
+    if (!this.apiKey) return [];
+
+    try {
+      const prompt = `Create 3 flashcard pairs from this content. Each should have a question/prompt and answer:
+
+Content: "${content}"
+
+Return as JSON array with type: "flashcard", content: "Question: [question]\nAnswer: [answer]", metadata: {topic}`;
+
+      const response = await this.callOpenAI(prompt);
+      return this.parseInsights(response);
+    } catch (error) {
+      console.error('Error generating flashcards:', error);
+      return [];
+    }
+  }
+
+  async findCrossReferences(item: any, allItems: any[]): Promise<any[]> {
+    if (!this.apiKey || allItems.length === 0) return [];
+
+    try {
+      const itemContent = 'text' in item ? item.text : `${item.title} - ${item.description || ''}`;
+      const otherItems = allItems.filter(other => other.id !== item.id).slice(0, 10);
+
+      const prompt = `Analyze the main item and find potential relationships with other items:
+
+Main item: "${itemContent}"
+
+Other items:
+${otherItems.map((other, i) => 
+  `${i + 1}. ${other.id}: ${'text' in other ? other.text : `${other.title} - ${other.description || ''}`}`
+).join('\n')}
+
+For each relationship found, return JSON with:
+- targetId: the item ID
+- relationshipType: "related" | "contradicts" | "supports" | "cites" | "builds-on"
+- strength: 0-1 confidence score
+- note: brief explanation
+
+Only return relationships with strength > 0.3`;
+
+      const response = await this.callOpenAI(prompt);
+      return this.parseCrossReferences(response, item.id);
+    } catch (error) {
+      console.error('Error finding cross references:', error);
+      return [];
+    }
+  }
+
+  async generateRecommendations(userHistory: any[]): Promise<any[]> {
+    if (!this.apiKey) return [];
+
+    try {
+      const recentItems = userHistory.slice(-10);
+      const topics = await this.extractKeyTopics(
+        recentItems.map(item => 'text' in item ? item.text : `${item.title} - ${item.description || ''}`).join(' ')
+      );
+
+      const prompt = `Based on the user's reading history and interests, suggest 5 content recommendations:
+
+Recent reading topics: ${topics.join(', ')}
+
+Recent items:
+${recentItems.map(item => 
+  'text' in item ? `Highlight: "${item.text}"` : `Link: "${item.title}"`
+).join('\n')}
+
+Suggest:
+1. Specific topics to explore next
+2. Types of content that would complement their reading
+3. Areas for deeper study
+
+Return as JSON array with type: "recommendation", content: suggestion, metadata: {topic, confidence}`;
+
+      const response = await this.callOpenAI(prompt);
+      return this.parseInsights(response);
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      return [];
+    }
+  }
+
+  async updateKnowledgeGraph(items: any[]): Promise<any> {
+    const nodes: any[] = [];
+    const edges: any[] = [];
+    const topicCounts = new Map<string, number>();
+
+    // Extract topics and create nodes
+    for (const item of items) {
+      const content = 'text' in item ? item.text : `${item.title} - ${item.description || ''}`;
+      const topics = await this.extractKeyTopics(content);
+      
+      // Add item node
+      nodes.push({
+        id: item.id,
+        type: 'text' in item ? 'highlight' : 'link',
+        label: 'text' in item ? item.text.slice(0, 50) + '...' : item.title,
+        weight: 1,
+        metadata: { topics }
+      });
+
+      // Count topic frequencies
+      topics.forEach(topic => {
+        topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+      });
+    }
+
+    // Add topic nodes
+    topicCounts.forEach((count, topic) => {
+      if (count > 1) {
+        nodes.push({
+          id: `topic-${topic}`,
+          type: 'topic',
+          label: topic,
+          weight: count,
+          metadata: { frequency: count }
+        });
+      }
+    });
+
+    return {
+      nodes,
+      edges,
+      lastUpdated: Date.now()
+    };
+  }
+
+  async extractKeyTopics(content: string): Promise<string[]> {
+    if (!this.apiKey) {
+      // Fallback: simple keyword extraction
+      const words = content.toLowerCase().match(/\b\w+\b/g) || [];
+      const wordCounts = new Map<string, number>();
+      words.forEach(word => {
+        if (word.length > 4) {
+          wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+        }
+      });
+      return Array.from(wordCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([word]) => word);
+    }
+
+    try {
+      const prompt = `Extract 3-5 key topics/themes from this content. Return as comma-separated list:
+
+Content: "${content.slice(0, 1000)}"`;
+
+      const response = await this.callOpenAI(prompt);
+      return response.split(',').map((topic: string) => topic.trim()).filter((topic: string) => topic.length > 0);
+    } catch (error) {
+      console.error('Error extracting topics:', error);
+      return [];
+    }
+  }
+
+  calculateKnowledgeGrowth(analytics: any[]): number {
+    if (analytics.length === 0) return 0;
+    
+    const recent = analytics.slice(-7);
+    const older = analytics.slice(-14, -7);
+    
+    const recentScore = recent.reduce((sum, day) => sum + (day.linksRead || 0) + (day.highlightsMade || 0), 0);
+    const olderScore = older.reduce((sum, day) => sum + (day.linksRead || 0) + (day.highlightsMade || 0), 0);
+    
+    if (olderScore === 0) return recentScore > 0 ? 1 : 0;
+    return Math.max(0, Math.min(2, recentScore / olderScore));
+  }
+
+  private async callOpenAI(prompt: string): Promise<any> {
+    const response = await fetch(`${this.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || '';
+  }
+
+  private parseInsights(response: string): any[] {
+    try {
+      const parsed = JSON.parse(response);
+      return Array.isArray(parsed) ? parsed.map(insight => ({
+        id: `insight-${Date.now()}-${Math.random()}`,
+        ...insight,
+        createdAt: Date.now(),
+      })) : [];
+    } catch (error) {
+      return [{
+        id: `insight-${Date.now()}`,
+        type: 'summary',
+        content: response.slice(0, 200),
+        createdAt: Date.now(),
+      }];
+    }
+  }
+
+  private parseCrossReferences(response: string, sourceId: string): any[] {
+    try {
+      const parsed = JSON.parse(response);
+      return Array.isArray(parsed) ? parsed.map(ref => ({
+        id: `ref-${Date.now()}-${Math.random()}`,
+        ...ref,
+        createdAt: Date.now(),
+      })) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+}
+
+// Single export of configured aiService instance
+export const aiService = new AIService({ apiKey: '' }); 

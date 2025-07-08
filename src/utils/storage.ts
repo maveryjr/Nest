@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { SavedLink, Collection, StorageData, Category, SmartCollection } from '../types';
+import { AnalyticsService } from './analytics';
 
 class StorageManager {
   async getData(): Promise<StorageData> {

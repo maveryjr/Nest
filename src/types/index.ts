@@ -2,32 +2,103 @@ export interface SavedLink {
   id: string;
   url: string;
   title: string;
-  favicon?: string;
-  userNote: string;
-  aiSummary?: string;
+  description?: string;
+  savedAt: number;
+  tags: string[];
   category: string;
-  collectionId?: string;
-  isInInbox?: boolean;
+  isPrivate: boolean;
   highlights?: Highlight[];
-  createdAt: Date;
-  updatedAt: Date;
-  domain: string;
-  searchRank?: number;
-  searchHeadline?: string;
+  notes?: Note[];
+  crossReferences?: CrossReference[];
+  aiInsights?: AIInsight[];
+  readingTime?: number;
+  lastAccessed?: number;
+  accessCount?: number;
 }
 
 export interface Highlight {
   id: string;
-  selectedText: string;
-  userNote?: string;
-  context?: string; // surrounding text for context
-  position?: {
-    startOffset: number;
-    endOffset: number;
-    xpath?: string;
+  text: string;
+  context: string;
+  position: {
+    start: number;
+    end: number;
+    path: string;
   };
-  createdAt: Date;
-  updatedAt: Date;
+  url: string;
+  createdAt: number;
+  notes?: Note[];
+  crossReferences?: CrossReference[];
+  aiInsights?: AIInsight[];
+}
+
+export interface Note {
+  id: string;
+  content: string;
+  type: 'text' | 'voice' | 'image';
+  createdAt: number;
+  updatedAt: number;
+  isPrivate: boolean;
+  tags?: string[];
+}
+
+export interface CrossReference {
+  id: string;
+  targetType: 'link' | 'highlight' | 'collection';
+  targetId: string;
+  relationshipType: 'related' | 'contradicts' | 'supports' | 'cites' | 'builds-on';
+  strength: number; // 0-1, confidence in the relationship
+  createdAt: number;
+  note?: string;
+}
+
+export interface AIInsight {
+  id: string;
+  type: 'question' | 'summary' | 'flashcard' | 'connection' | 'recommendation';
+  content: string;
+  metadata?: {
+    difficulty?: 'easy' | 'medium' | 'hard';
+    topic?: string;
+    confidence?: number;
+    relatedConcepts?: string[];
+  };
+  createdAt: number;
+  isReviewed?: boolean;
+  userRating?: number; // 1-5 stars
+}
+
+export interface ReadingAnalytics {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  linksRead: number;
+  highlightsMade: number;
+  timeSpent: number; // minutes
+  topicsExplored: string[];
+  mostActiveHours: number[];
+  readingStreak: number;
+  knowledgeGrowthScore: number;
+}
+
+export interface KnowledgeGraph {
+  nodes: KnowledgeNode[];
+  edges: KnowledgeEdge[];
+  lastUpdated: number;
+}
+
+export interface KnowledgeNode {
+  id: string;
+  type: 'link' | 'highlight' | 'topic' | 'concept';
+  label: string;
+  weight: number; // importance/frequency
+  metadata?: any;
+}
+
+export interface KnowledgeEdge {
+  source: string;
+  target: string;
+  relationship: string;
+  weight: number;
 }
 
 export interface Collection {
@@ -77,6 +148,8 @@ export interface StorageData {
   collections: Collection[];
   smartCollections: SmartCollection[];
   categories: Category[];
+  readingAnalytics?: ReadingAnalytics[];
+  knowledgeGraph?: KnowledgeGraph;
   settings: {
     openaiApiKey?: string;
     defaultCategory: string;
@@ -85,6 +158,11 @@ export interface StorageData {
     autoCategorization?: boolean;
     enableSmartCollections?: boolean;
     enableActivityTracking?: boolean;
+    highlightColor?: string;
+    highlightStyle?: 'solid' | 'gradient' | 'underline' | 'outline';
+    enableAIInsights?: boolean;
+    enableCrossReferences?: boolean;
+    enableAnalytics?: boolean;
   };
 }
 

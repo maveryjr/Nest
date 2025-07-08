@@ -7,6 +7,7 @@ Nest is a powerful Chrome extension that transforms how you save and organize we
 ### Core Functionality
 - **Smart Link Capture**: Save any webpage with one click or right-click context menu
 - **AI-Powered Summaries**: Automatically generates intelligent summaries of saved content
+- **Visual Text Highlighting**: Highlight and save specific text passages with visual markers on the page
 - **Holding Area**: Temporary storage for quick saves before organizing
 - **Collections**: Create custom folders to organize your saved links
 - **Auto-Categorization**: Intelligent category suggestions based on content and domain
@@ -109,6 +110,14 @@ npm run clean        # Clean build directory
 4. **Move Links**: Drag or use the menu to move links between collections
 5. **Search**: Use the search bar to find links by any content
 
+### Text Highlighting
+1. **Select Text**: Highlight any text on a webpage (minimum 10 characters)
+2. **Save Highlight**: Click the "Save highlight" button that appears
+3. **Visual Markers**: Text is visually highlighted with a yellow background
+4. **Persistent Highlights**: Highlights remain visible when you revisit the page
+5. **Manage Highlights**: Click on any highlight to remove it or view details
+6. **Highlight Notes**: Add personal notes to any saved highlight
+
 ### Sidebar Navigation
 - **Collapsible Sections**: Click headers to expand/collapse areas
 - **Link Actions**: Hover over links for quick actions menu
@@ -155,6 +164,9 @@ The codebase is designed for easy extension:
 - **Collaborative Collections**: Share collections with others
 - **Web Clipper**: Save selected text and images
 - **Analytics**: Usage insights and link management stats
+- **Highlight Export**: Export highlights as PDF or text files
+- **Highlight Sharing**: Share individual highlights with others
+- **Advanced Highlight Styling**: Custom colors and styles for different types of highlights
 
 ## 🐛 Troubleshooting
 

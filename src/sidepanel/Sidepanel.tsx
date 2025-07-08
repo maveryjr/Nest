@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain } from 'lucide-react';
 import { SavedLink, Collection, StorageData, SmartCollection } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
@@ -17,6 +17,8 @@ import SettingsComponent from './components/Settings';
 import { supabase } from '../utils/supabase';
 import { Session } from '@supabase/supabase-js';
 import './sidepanel.css';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import AIInsights from './components/AIInsights';
 
 interface UserTag {
   id: string;
@@ -61,6 +63,8 @@ const Sidepanel: React.FC = () => {
   const [showTabSync, setShowTabSync] = useState(false);
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [currentPageInfo, setCurrentPageInfo] = useState<any>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
 
   useEffect(() => {
     // Check for an initial session
@@ -231,6 +235,39 @@ const Sidepanel: React.FC = () => {
       console.error('Failed to get page info:', error);
       // Fallback to direct save
       await saveDirectly();
+    }
+  };
+
+  const toggleFloatingAI = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        await chrome.tabs.sendMessage(tabs[0].id!, { action: 'toggleFloatingAI' });
+      }
+    } catch (error) {
+      console.error('Failed to toggle floating AI:', error);
+    }
+  };
+
+  const toggleStickyNotes = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        await chrome.tabs.sendMessage(tabs[0].id!, { action: 'toggleStickyNotes' });
+      }
+    } catch (error) {
+      console.error('Failed to toggle sticky notes:', error);
+    }
+  };
+
+  const toggleScreenshotTool = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        await chrome.tabs.sendMessage(tabs[0].id!, { action: 'toggleScreenshotTool' });
+      }
+    } catch (error) {
+      console.error('Failed to toggle screenshot tool:', error);
     }
   };
 
@@ -582,11 +619,29 @@ const Sidepanel: React.FC = () => {
           <h1>Nest</h1>
         </div>
         <div className="header-actions">
+          <button onClick={toggleScreenshotTool} className="screenshot-button" title="Screenshot Tool (Alt+C)">
+            <Camera size={18} />
+          </button>
+          <button onClick={toggleStickyNotes} className="sticky-notes-button" title="Toggle Sticky Notes (Alt+S)">
+            <StickyNote size={18} />
+          </button>
+          <button onClick={toggleFloatingAI} className="floating-ai-button" title="Toggle Floating AI Assistant (Alt+A)">
+            <MessageCircle size={18} />
+          </button>
           <button onClick={() => setShowTabSync(true)} className="tab-sync-button" title="Tab Sync Mode">
             <TabletSmartphone size={18} />
           </button>
           <button onClick={saveCurrentPage} className="save-button" title="Save current page">
             <Plus size={18} />
+          </button>
+          <button onClick={() => setShowAnalytics(true)} className="analytics-button" title="View Reading Analytics">
+            <BarChart3 size={18} />
+            Analytics
+          </button>
+          
+          <button onClick={() => setShowAIInsights(true)} className="ai-insights-button" title="AI-Powered Insights">
+            <Brain size={18} />
+            AI Insights
           </button>
           <button onClick={handleLogout} className="logout-button" title="Logout">
             <LogOut size={18} />
@@ -987,6 +1042,14 @@ const Sidepanel: React.FC = () => {
         linkTitle={currentPageInfo?.title}
         linkUrl={currentPageInfo?.url}
       />
+
+      {showAnalytics && (
+        <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+      )}
+
+      {showAIInsights && (
+        <AIInsights onClose={() => setShowAIInsights(false)} />
+      )}
     </div>
   );
 };
