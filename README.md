@@ -1,44 +1,159 @@
-# Nest - Smart Bookmarking Chrome Extension
+# Nest - AI-Powered Smart Bookmarking & Knowledge Management
 
-Nest is a powerful Chrome extension that transforms how you save and organize web content. It combines intelligent bookmarking with AI-powered summaries and flexible organization tools, all accessible through a beautiful sidebar interface.
+Nest is an advanced Chrome extension that revolutionizes how you save, organize, and interact with web content. It combines intelligent bookmarking with cutting-edge AI features, visual highlighting, and powerful productivity tools, all accessible through a beautiful sidebar interface.
 
-## ✨ Features
+## ✨ Core Features
 
-### Core Functionality
-- **Smart Link Capture**: Save any webpage with one click or right-click context menu
-- **AI-Powered Summaries**: Automatically generates intelligent summaries of saved content
-- **Visual Text Highlighting**: Highlight and save specific text passages with visual markers on the page
-- **Holding Area**: Temporary storage for quick saves before organizing
-- **Collections**: Create custom folders to organize your saved links
-- **Auto-Categorization**: Intelligent category suggestions based on content and domain
-- **Search & Filter**: Full-text search across titles, notes, summaries, and categories
+### 🔗 Smart Link Management
+- **One-Click Saving**: Save any webpage instantly with browser action, context menu, or keyboard shortcuts
+- **AI-Powered Summaries**: Automatically generates intelligent summaries of saved content using OpenAI
+- **Inbox System**: Temporary holding area for quick saves before organizing
+- **Smart Collections**: Create custom folders with AI-powered auto-organization
+- **Advanced Search**: Full-text search across titles, notes, summaries, categories, and tags
+- **URL Detection**: Smart duplicate detection and link validation
 
-### User Experience
-- **Sidebar Interface**: Persistent, collapsible sidebar with modern design
-- **Quick Notes**: Add personal notes to any saved link
-- **Visual Favicons**: Automatic favicon detection with fallback placeholders
-- **Keyboard Shortcuts**: Save pages instantly with `Ctrl+Shift+S` (or `Cmd+Shift+S` on Mac)
-- **Context Menu**: Right-click to save any page or link
-- **Mobile-Responsive**: Works beautifully on any screen size
+### 🎨 Visual Highlighting System
+- **Text Highlighting**: Select and save specific text passages with visual markers
+- **7 Color Options**: Yellow, Blue, Green, Pink, Purple, Orange, Red
+- **4 Style Options**: Gradient, Solid, Underline, Outline
+- **Cross-Site Compatibility**: Works on most websites with graceful degradation
+- **Persistent Highlights**: Visual markers remain when you revisit pages
+- **Highlight Management**: Click highlights to view details or remove them
+- **Smart Site Detection**: Automatically handles problematic sites with user feedback
 
-### Data Management
-- **Local Storage**: Uses IndexedDB for fast, offline access
-- **Data Persistence**: All your data stays on your device
-- **Export Ready**: Easy to extend for cloud sync or export features
+### 🤖 AI-Powered Intelligence
+
+#### AI Insights & Analysis
+- **Content Analysis**: AI analyzes saved links for key topics and themes
+- **Smart Questions**: Generate comprehension questions from highlights and links
+- **Automatic Flashcards**: Create study cards from saved content
+- **Cross-References**: Detect relationships between different pieces of content
+- **Reading Recommendations**: Personalized suggestions based on your interests
+
+#### Auto-Organization Features
+- **AI Auto-Organize**: One-click organization of all inbox items
+- **Smart Categorization**: Intelligent category suggestions based on content
+- **Auto-Tagging**: AI-powered tag suggestions with confidence scoring
+- **Collection Matching**: Automatically suggests the best collection for each link
+
+### 📊 Analytics & Productivity
+
+#### Reading Analytics Dashboard
+- **Activity Tracking**: Monitor reading habits and engagement patterns
+- **Key Metrics**: Items read, daily averages, reading streaks, knowledge growth
+- **Time Analysis**: Peak reading hours and productivity insights
+- **Progress Tracking**: Visual charts showing your learning journey
+- **Goal Setting**: Track reading goals and achievement streaks
+
+#### Focus Mode & Productivity Tools
+- **Multiple Focus Types**: Reading, Research, and Distraction-free modes
+- **Timer Functionality**: Customizable durations from 5-120 minutes
+- **Site Blocking**: Block distracting sites during focus sessions
+- **Goal Tracking**: Set and monitor focus session goals
+- **Session Analytics**: Track productivity patterns over time
+
+#### Command Palette
+- **Quick Actions**: Fast access to all features via `Ctrl+K` (or `Cmd+K`)
+- **Fuzzy Search**: Find links, collections, and actions instantly
+- **Keyboard Navigation**: Full keyboard control for power users
+- **Smart Suggestions**: Context-aware command recommendations
+
+### 🔄 Advanced Organization
+
+#### Knowledge Graph
+- **Visual Connections**: Interactive canvas showing relationships between content
+- **AI-Powered Relationships**: Automatic detection of content connections
+- **Multiple Node Types**: Links, highlights, notes, and tags visualization
+- **Interactive Controls**: Zoom, pan, and filter capabilities
+- **Relationship Strength**: Visual indicators of connection confidence
+
+#### Smart Collections
+- **AI-Powered Collections**: Automatically updating collections based on rules
+- **Collection Templates**: Pre-built collections for common use cases
+- **Auto-Update Rules**: Collections that grow based on content patterns
+- **Sharing Capabilities**: Share collections publicly with generated links
+
+#### Rich Annotations
+- **Voice Memos**: Record and attach voice notes to any saved content
+- **Rich Text Notes**: Full formatting support for detailed annotations
+- **Note Organization**: Tag and categorize your annotations
+- **Cross-Linking**: Connect notes to multiple pieces of content
+
+### 🌐 Content Tools
+
+#### Screenshot Tool
+- **Full-Page Capture**: Save entire webpage screenshots
+- **Selective Areas**: Capture specific regions of pages
+- **Annotation Tools**: Mark up screenshots with notes and highlights
+- **Storage Integration**: Screenshots saved alongside bookmarks
+
+#### Floating AI Assistant
+- **Context-Aware Help**: AI assistant that understands current page content
+- **Quick Questions**: Ask questions about the current page
+- **Content Summarization**: Get instant summaries of long articles
+- **Research Assistance**: Help with fact-checking and analysis
+
+#### Sticky Notes
+- **Page-Specific Notes**: Add persistent notes to any webpage
+- **Visual Positioning**: Notes stay anchored to specific page locations
+- **Rich Formatting**: Support for formatted text and links
+- **Note Management**: Organize and search across all sticky notes
+
+### 📱 User Experience
+
+#### Modern Interface
+- **Sidebar Design**: Persistent, collapsible sidebar with clean aesthetics
+- **Responsive Layout**: Works beautifully on any screen size
+- **Dark Mode Ready**: CSS structured for future dark mode implementation
+- **Accessibility**: WCAG-compliant design with keyboard navigation
+- **Mobile Optimized**: Touch-friendly interfaces for mobile devices
+
+#### Customization Options
+- **Compact View Mode**: Space-efficient layout option
+- **Keyboard Shortcuts**: Fully customizable hotkeys
+- **New Tab Override**: Custom new tab page with your content
+- **Notification Settings**: Configurable alerts and confirmations
+- **Privacy Controls**: Fine-grained privacy and sharing settings
+
+#### Smart Notifications
+- **Toast System**: Real-time feedback for all operations
+- **Progress Indicators**: Clear status updates for long operations
+- **Error Handling**: Graceful error recovery with user guidance
+- **Success Confirmation**: Visual confirmation of completed actions
+
+### 🔄 Sync & Integration
+
+#### Tab Sync Mode
+- **Multi-Tab Management**: View and save all open browser tabs
+- **Bulk Operations**: Save multiple tabs at once
+- **Tab Organization**: Organize open tabs into collections
+- **Session Management**: Save and restore browsing sessions
+
+#### Data Management
+- **Local Storage**: Fast IndexedDB storage with offline access
+- **Data Export**: Easy backup and migration capabilities
+- **Privacy First**: All data stays on your device by default
+- **Supabase Integration**: Optional cloud sync for cross-device access
+
+#### Import/Export
+- **Bookmark Import**: Import from browser bookmarks
+- **Data Backup**: Export all data for backup purposes
+- **Collection Sharing**: Share collections with generated links
+- **Format Support**: Multiple export formats (JSON, CSV, HTML)
 
 ## 🚀 Installation & Setup
 
 ### Prerequisites
 - Node.js 16+ 
 - npm or yarn
-- Chrome browser
+- Chrome browser (Manifest V3 compatible)
 
 ### Development Setup
 
 1. **Clone and install dependencies**:
 ```bash
 git clone <your-repo-url>
-cd nest-chrome-extension
+cd Nest
 npm install
 ```
 
@@ -57,10 +172,10 @@ npm run build
    - Click "Load unpacked"
    - Select the `dist` folder from your project
 
-4. **Test the extension**:
-   - Click the Nest icon in the toolbar
-   - Try saving a webpage
-   - Open the sidebar to view your saved links
+4. **Configure AI Features** (Optional):
+   - Open the extension settings
+   - Add your OpenAI API key for full AI functionality
+   - Configure auto-tagging and categorization preferences
 
 ## 🔧 Development
 
@@ -68,129 +183,210 @@ npm run build
 ```
 src/
 ├── background/          # Service worker scripts
+│   └── background.ts    # Extension lifecycle, context menus, page saving
 ├── content/            # Content script for page interaction
+│   ├── content.ts      # Text selection, highlighting, page analysis
+│   ├── FloatingAI.tsx  # AI assistant overlay
+│   ├── StickyNotes.tsx # Page-specific note system
+│   └── ScreenshotTool.tsx # Screenshot capture tool
 ├── popup/              # Extension popup interface
+│   ├── Popup.tsx       # Quick actions and save functionality
+│   └── popup.css       # Popup styling
 ├── sidepanel/          # Main sidebar application
-│   ├── components/     # React components
-│   └── sidepanel.css   # Styles
+│   ├── Sidepanel.tsx   # Main React application
+│   ├── components/     # Feature-specific React components
+│   │   ├── AIInsights.tsx        # AI analysis and recommendations
+│   │   ├── AnalyticsDashboard.tsx # Reading analytics and stats
+│   │   ├── CommandPalette.tsx    # Quick action interface
+│   │   ├── FocusMode.tsx         # Productivity timer and blocking
+│   │   ├── KnowledgeGraph.tsx    # Visual relationship mapping
+│   │   ├── RichAnnotations.tsx   # Voice memos and rich notes
+│   │   ├── Settings.tsx          # Configuration interface
+│   │   └── ...                   # Other feature components
+│   └── sidepanel.css   # Main application styles
+├── newtab/             # Custom new tab page
+│   ├── NewTab.tsx      # New tab interface
+│   └── newtab.css      # New tab styling
+├── auth/               # Authentication system
 ├── types/              # TypeScript type definitions
+│   └── index.ts        # Shared type definitions
 └── utils/              # Shared utilities
     ├── storage.ts      # IndexedDB storage manager
-    └── ai.ts           # AI summary generation
+    ├── ai.ts           # OpenAI integration and AI services
+    ├── analytics.ts    # Usage analytics and tracking
+    ├── digest.ts       # Email digest generation
+    └── supabase.ts     # Cloud sync and sharing
 ```
 
 ### Key Components
 
-- **Background Script**: Handles extension lifecycle, context menus, and page saving
-- **Content Script**: Extracts page content for AI summarization
-- **Sidepanel**: Main React application with full bookmark management
-- **Popup**: Quick actions interface for saving and accessing sidebar
-- **Storage Manager**: IndexedDB wrapper for data persistence
-- **AI Service**: Intelligent summary generation (with OpenAI API placeholder)
+- **Background Script**: Handles extension lifecycle, context menus, keyboard shortcuts, and page saving
+- **Content Script**: Manages text selection, highlighting, floating tools, and page content extraction
+- **Sidepanel**: Main React application with full bookmark management and AI features
+- **Popup**: Quick actions interface for saving pages and accessing the sidebar
+- **Storage Manager**: Sophisticated IndexedDB wrapper with analytics and cross-reference support
+- **AI Services**: OpenAI integration with fallback systems for offline functionality
+- **Analytics Service**: Comprehensive usage tracking with privacy-first design
 
 ### Available Scripts
 
 ```bash
 npm run dev          # Development build with watch mode
-npm run build        # Production build
+npm run build        # Production build for Chrome Web Store
 npm run clean        # Clean build directory
 ```
 
-## 🎯 Usage
+## 🎯 Usage Guide
 
-### Saving Links
-1. **Browser Action**: Click the Nest icon and select "Save to Nest"
-2. **Context Menu**: Right-click any page and select "Save to Nest"
-3. **Keyboard Shortcut**: Press `Ctrl+Shift+S` (or `Cmd+Shift+S` on Mac)
+### Getting Started
+1. **Install the Extension**: Load the unpacked extension in Chrome
+2. **Save Your First Link**: Click the Nest icon and select "Save to Nest"
+3. **Open the Sidebar**: Click the extension icon or use the sidebar button
+4. **Explore Features**: Try highlighting text, using the command palette, or exploring AI insights
 
-### Organization
-1. **Holding Area**: All saved links start here
-2. **Add Notes**: Click the edit icon to add personal notes
-3. **Create Collections**: Organize links into custom folders
-4. **Move Links**: Drag or use the menu to move links between collections
-5. **Search**: Use the search bar to find links by any content
+### Keyboard Shortcuts
+- `Ctrl+Shift+S` (or `Cmd+Shift+S`): Save current page
+- `Ctrl+Shift+I` (or `Cmd+Shift+I`): Save to inbox quickly
+- `Ctrl+K` (or `Cmd+K`): Open command palette
+- Text selection + click: Create highlights
 
-### Text Highlighting
-1. **Select Text**: Highlight any text on a webpage (minimum 10 characters)
-2. **Save Highlight**: Click the "Save highlight" button that appears
-3. **Visual Markers**: Text is visually highlighted with a yellow background
-4. **Persistent Highlights**: Highlights remain visible when you revisit the page
-5. **Manage Highlights**: Click on any highlight to remove it or view details
-6. **Highlight Notes**: Add personal notes to any saved highlight
+### Saving Content
+- **Browser Action**: Click the Nest icon for save options
+- **Context Menu**: Right-click any page/link and select "Save to Nest"
+- **Text Highlights**: Select text (10+ characters) and click "Save highlight"
+- **Bulk Saving**: Use Tab Sync mode for multiple tabs
 
-### Sidebar Navigation
-- **Collapsible Sections**: Click headers to expand/collapse areas
-- **Link Actions**: Hover over links for quick actions menu
-- **Collection Management**: Create, rename, and manage collections
-- **Search & Filter**: Real-time search across all saved content
+### Organization Workflow
+1. **Inbox First**: All saves start in the inbox
+2. **AI Auto-Organize**: Use the AI button to automatically organize content
+3. **Manual Organization**: Drag items or use menus to move to collections
+4. **Add Context**: Enhance with notes, tags, and voice memos
+5. **Review & Connect**: Use the knowledge graph to see relationships
 
-## 🔮 AI Integration
+### AI Features
+- **Auto-Summarization**: Enabled by default for all saved pages
+- **Smart Suggestions**: Get tag and category suggestions for each link
+- **Reading Assistant**: Ask questions about saved content
+- **Cross-References**: Discover connections between your saved items
+- **Productivity Insights**: Get personalized reading recommendations
 
-The extension includes a placeholder AI service that can be configured with OpenAI API:
+## 🔮 AI Configuration
 
-1. **Configure API Key**: Add your OpenAI API key in settings (future feature)
-2. **Auto-Summarization**: Pages are automatically summarized when saved
-3. **Fallback Logic**: Provides rule-based summaries when AI is unavailable
+### OpenAI Integration
+The extension includes comprehensive AI features powered by OpenAI:
+
+1. **API Key Setup**: Add your OpenAI API key in Settings → AI Features
+2. **Feature Configuration**: Enable/disable specific AI features
+3. **Cost Management**: Monitor API usage in the settings panel
+4. **Fallback Systems**: Basic functionality works without API key
 
 ### Customizing AI Behavior
-
 Edit `src/utils/ai.ts` to:
-- Configure different AI models
-- Adjust summary length and style
+- Configure different AI models (GPT-3.5, GPT-4)
+- Adjust summary length and style preferences
 - Add custom prompts for different content types
-- Implement alternative AI providers
+- Implement alternative AI providers (Anthropic, local models)
+- Configure confidence thresholds for auto-organization
+
+### AI Features Breakdown
+- **Content Summarization**: Automatic summaries of saved pages
+- **Tag Generation**: Smart tag suggestions based on content analysis
+- **Category Detection**: Intelligent categorization with confidence scoring
+- **Question Generation**: Study questions from highlights and articles
+- **Cross-Reference Detection**: Relationship mapping between content
+- **Reading Recommendations**: Personalized content suggestions
 
 ## 🎨 Customization
 
-### Styling
-- Main styles in `src/sidepanel/sidepanel.css`
-- Uses modern CSS with clean, minimal design
-- Color scheme based on Tailwind CSS palette
-- Fully customizable theme variables
+### Visual Customization
+- **Highlight Colors**: 7 color options with custom styling
+- **Interface Themes**: CSS variables for easy theme modification
+- **Layout Options**: Compact view mode and responsive design
+- **Icon Customization**: Replace icons with your preferred set
 
-### Adding Features
+### Behavioral Customization
+- **Auto-Save Settings**: Configure automatic saving behavior
+- **Notification Preferences**: Customize alerts and confirmations
+- **Keyboard Shortcuts**: Modify all hotkeys via Chrome settings
+- **Privacy Controls**: Fine-tune data sharing and sync options
+
+### Developer Customization
 The codebase is designed for easy extension:
-- Add new storage methods in `storage.ts`
-- Create new React components in `components/`
-- Extend the background script for new functionality
-- Add new context menu items or keyboard shortcuts
+- **Plugin Architecture**: Add new features via component system
+- **Storage Extensions**: Implement custom storage backends
+- **AI Providers**: Integrate alternative AI services
+- **Export Formats**: Add new data export options
+- **Theme System**: Implement custom color schemes
 
-## 🚧 Future Enhancements
+## 🚧 Roadmap & Future Features
 
-- **Cloud Sync**: Sync bookmarks across devices
-- **Tags System**: Add multiple tags to links
-- **Import/Export**: Backup and restore functionality
-- **Advanced Search**: Filters, date ranges, and sorting
-- **Collaborative Collections**: Share collections with others
-- **Web Clipper**: Save selected text and images
-- **Analytics**: Usage insights and link management stats
-- **Highlight Export**: Export highlights as PDF or text files
-- **Highlight Sharing**: Share individual highlights with others
-- **Advanced Highlight Styling**: Custom colors and styles for different types of highlights
+### Short-term Enhancements
+- **Enhanced Mobile Support**: Improved touch interactions
+- **Advanced Search Filters**: Date ranges, content types, reading status
+- **Collaborative Features**: Shared collections and team workspaces
+- **Enhanced Export Options**: PDF generation, note-taking app integration
+
+### Long-term Vision
+- **Multi-Browser Support**: Firefox and Safari extensions
+- **Desktop Application**: Standalone app for power users
+- **API Integration**: Connect with popular productivity tools
+- **Machine Learning**: Local AI models for privacy-conscious users
+- **Advanced Analytics**: Detailed learning analytics and insights
+
+### Community Features
+- **Public Collections**: Discover and follow other users' collections
+- **Content Recommendations**: Community-driven content discovery
+- **Template Sharing**: Share collection templates and workflows
+- **Extension Marketplace**: Third-party plugins and integrations
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 **Extension not loading**:
-- Check that you've run `npm run build`
-- Verify the `dist` folder exists and contains files
-- Try reloading the extension in Chrome
+- Verify Node.js version (16+) and build completion
+- Check that `dist` folder exists with compiled files
+- Try reloading the extension in Chrome extensions page
 
-**Save function not working**:
-- Check browser console for errors
-- Verify you're not on a `chrome://` page
-- Try refreshing the target page
+**AI features not working**:
+- Ensure OpenAI API key is correctly configured in settings
+- Check API quota and billing status
+- Verify internet connection for API requests
+
+**Highlights not appearing**:
+- Check if the site is in the problematic sites list
+- Verify highlight settings in preferences
+- Try refreshing the page after saving highlights
 
 **Sidebar not opening**:
-- Ensure you've clicked the extension icon
-- Check that sidepanel permission is granted
-- Try disabling and re-enabling the extension
+- Ensure sidepanel permission is granted
+- Try clicking the extension icon rather than right-clicking
+- Check for conflicts with other extensions
 
-**Development setup issues**:
-- Verify Node.js version (16+)
-- Clear `node_modules` and reinstall
-- Check for TypeScript compilation errors
+**Performance issues**:
+- Clear extension data if storage becomes too large
+- Disable unused AI features to reduce resource usage
+- Check for Chrome updates and extension conflicts
+
+### Debug Mode
+Enable debug logging by setting `DEBUG=true` in the console:
+```javascript
+localStorage.setItem('NEST_DEBUG', 'true');
+```
+
+## 📄 Privacy & Security
+
+### Data Handling
+- **Local-First**: All data stored locally by default
+- **Optional Cloud Sync**: Supabase integration for cross-device access
+- **Privacy Controls**: Granular settings for data sharing
+- **No Tracking**: No analytics or user tracking without consent
+
+### AI Privacy
+- **API Communication**: Direct communication with OpenAI (when configured)
+- **Data Minimization**: Only necessary content sent for analysis
+- **User Control**: All AI features can be disabled
+- **Local Fallbacks**: Basic functionality without external services
 
 ## 📝 License
 
@@ -198,14 +394,18 @@ This project is open source and available under the MIT License.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
+We welcome contributions! Please see our contributing guidelines for:
+- **Code Standards**: TypeScript, React, and Chrome extension best practices
+- **Feature Requests**: How to propose new features
+- **Bug Reports**: Template for reporting issues
+- **Pull Requests**: Review process and requirements
 
-### Development Guidelines
-- Follow the existing code style
-- Add TypeScript types for new features
-- Test thoroughly before submitting
-- Update documentation for new features
+### Development Environment
+- **Code Quality**: ESLint and Prettier configuration
+- **Testing**: Jest setup for unit and integration tests
+- **Documentation**: JSDoc comments and README updates
+- **Version Control**: Conventional commit messages
 
 ---
 
-**Built with ❤️ using React, TypeScript, and modern web technologies.** 
+**Built with modern web technologies**: React 18, TypeScript, Chrome Manifest V3, IndexedDB, OpenAI API, and Supabase. 
