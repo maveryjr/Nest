@@ -10,7 +10,8 @@
     "tabs",
     "notifications",
     "sidePanel",
-    "windows"
+    "windows",
+    "alarms"
   ],
   "host_permissions": [
     "http://*/*",

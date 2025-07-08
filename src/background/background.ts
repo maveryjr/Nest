@@ -889,8 +889,12 @@ async function initializePhase3Monitoring(): Promise<void> {
     // Set up periodic alarms for background tasks
     await setupPeriodicAlarms();
     
-    // Register alarm listeners
-    chrome.alarms.onAlarm.addListener(handleAlarm);
+    // Register alarm listeners (only if alarms API is available)
+    if (chrome.alarms && chrome.alarms.onAlarm) {
+      chrome.alarms.onAlarm.addListener(handleAlarm);
+    } else {
+      console.warn('Chrome alarms API not available - alarm monitoring disabled');
+    }
     
     // Initialize monitoring services
     await linkMonitor.initialize();
@@ -906,6 +910,12 @@ async function initializePhase3Monitoring(): Promise<void> {
  */
 async function setupPeriodicAlarms(): Promise<void> {
   try {
+    // Check if chrome.alarms API is available
+    if (!chrome.alarms) {
+      console.warn('Chrome alarms API not available - skipping alarm setup');
+      return;
+    }
+
     // Clear existing alarms
     await chrome.alarms.clearAll();
     

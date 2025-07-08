@@ -48,6 +48,66 @@ export class LinkMonitor {
   }
 
   /**
+   * Initialize the link monitor service
+   */
+  async initialize(): Promise<void> {
+    try {
+      console.log('LinkMonitor: Initializing service...');
+      
+      // Clear any existing processing state
+      this.isProcessing = false;
+      this.checkQueue = [];
+      
+      // Schedule initial health checks for links that haven't been checked recently
+      await this.schedulePeriodicChecks();
+      
+      console.log('LinkMonitor: Service initialized successfully');
+    } catch (error) {
+      console.error('LinkMonitor: Failed to initialize service:', error);
+    }
+  }
+
+  /**
+   * Check the health of multiple links by their IDs
+   */
+  async checkLinksHealth(linkIds: string[]): Promise<LinkCheckResult[]> {
+    try {
+      console.log(`Checking health of ${linkIds.length} links`);
+      
+      const results: LinkCheckResult[] = [];
+      
+      for (const linkId of linkIds) {
+        try {
+          const link = await this.getLinkById(linkId);
+          if (link) {
+            const result = await this.checkLinkHealth(link.url);
+            results.push({
+              ...result,
+              linkId // Add linkId to the result for reference
+            } as LinkCheckResult & { linkId: string });
+            
+            // Rate limiting
+            await this.delay(this.RATE_LIMIT_DELAY);
+          }
+        } catch (error) {
+          console.error(`Failed to check link ${linkId}:`, error);
+          results.push({
+            success: false,
+            status: 'unreachable',
+            error: error.message || 'Unknown error',
+            linkId
+          } as LinkCheckResult & { linkId: string });
+        }
+      }
+      
+      return results;
+    } catch (error) {
+      console.error('Failed to check links health:', error);
+      return [];
+    }
+  }
+
+  /**
    * Check the health of a single link
    */
   async checkLinkHealth(url: string): Promise<LinkCheckResult> {
@@ -212,12 +272,27 @@ export class LinkMonitor {
   }
 
   /**
+   * Get dead link IDs for processing
+   */
+  async getDeadLinks(): Promise<string[]> {
+    try {
+      const healthData = await this.getAllLinkHealth();
+      return healthData
+        .filter(health => health.status === 'dead')
+        .map(health => health.linkId);
+    } catch (error) {
+      console.error('Failed to get dead links:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get comprehensive health report for all links
    */
   async getHealthReport(): Promise<{
     totalLinks: number;
     healthyLinks: number;
-    deadLinks: number;
+    deadLinks: string[]; // Changed to return array of IDs
     unreachableLinks: number;
     redirectedLinks: number;
     uncheckedLinks: number;
@@ -229,7 +304,7 @@ export class LinkMonitor {
       const report = {
         totalLinks: 0,
         healthyLinks: 0,
-        deadLinks: 0,
+        deadLinks: [] as string[], // Changed to array of IDs
         unreachableLinks: 0,
         redirectedLinks: 0,
         uncheckedLinks: 0,
@@ -245,7 +320,7 @@ export class LinkMonitor {
             report.healthyLinks++;
             break;
           case 'dead':
-            report.deadLinks++;
+            report.deadLinks.push(health.linkId); // Add ID to array
             break;
           case 'unreachable':
             report.unreachableLinks++;
@@ -268,7 +343,7 @@ export class LinkMonitor {
       return {
         totalLinks: 0,
         healthyLinks: 0,
-        deadLinks: 0,
+        deadLinks: [], // Changed to empty array
         unreachableLinks: 0,
         redirectedLinks: 0,
         uncheckedLinks: 0,
