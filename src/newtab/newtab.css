@@ -660,6 +660,47 @@ body {
   transform: translateY(-2px);
 }
 
+/* Restricted Context Banner */
+.restricted-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #fef3cd 0%, #fde68a 100%);
+  border-bottom: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+.restricted-context-banner .banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.restricted-context-banner .banner-content strong {
+  font-weight: 600;
+  color: #78350f;
+}
+
+.restricted-context-banner .banner-content span {
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* Header button disabled state */
+.header-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.header-button:disabled:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: none;
+}
+
+/* Newtab container */
+
 /* Responsive design */
 @media (max-width: 1280px) {
   .content-grid {

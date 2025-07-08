@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Bookmark, 
-  Clock, 
-  TrendingUp, 
-  Sparkles, 
-  Settings, 
-  ExternalLink,
-  Calendar,
-  Target,
-  Flame,
+import {
+  Bookmark,
+  Search,
+  Plus,
   BookOpen,
+  Clock,
+  ExternalLink,
+  Settings,
+  Target,
+  Sparkles,
+  Calendar,
+  Flame,
   Archive,
   Eye,
-  EyeOff
+  EyeOff,
+  Folder,
+  AlertTriangle
 } from 'lucide-react';
 import { SavedLink, Collection, SmartCollection } from '../types';
 import { storage } from '../utils/storage';
@@ -37,8 +38,10 @@ const NewTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [greeting, setGreeting] = useState('');
+  const [isRestrictedContext, setIsRestrictedContext] = useState(false);
 
   useEffect(() => {
+    checkExtensionContext();
     checkIfEnabled();
     loadData();
     setGreeting(getTimeBasedGreeting());
@@ -47,73 +50,113 @@ const NewTab: React.FC = () => {
     loadDarkModeSetting();
   }, []);
 
+  const checkExtensionContext = async () => {
+    try {
+      // Test if Chrome extension APIs are working properly
+      if (!chrome?.windows || !chrome?.sidePanel || !chrome?.storage) {
+        setIsRestrictedContext(true);
+        return;
+      }
+
+      // Try to get current window to see if API is actually functional
+      const windows = await chrome.windows.getCurrent();
+      if (!windows || windows.id === undefined || windows.id < 0) {
+        setIsRestrictedContext(true);
+        return;
+      }
+
+      setIsRestrictedContext(false);
+    } catch (error) {
+      console.error('Extension context check failed:', error);
+      setIsRestrictedContext(true);
+    }
+  };
+
   const checkIfEnabled = async () => {
     try {
+      if (isRestrictedContext) {
+        // In restricted context, assume enabled since we can't check storage reliably
+        setIsEnabled(true);
+        return;
+      }
+
       const result = await chrome.storage.local.get('nest_newtab_enabled');
       // Default to enabled (true) instead of disabled - fix the missing logic
-      setIsEnabled(result.nest_newtab_enabled !== false);
+      const enabled = result.nest_newtab_enabled !== false;
+      setIsEnabled(enabled);
     } catch (error) {
-      console.error('Failed to check new tab setting:', error);
-      setIsEnabled(true); // Default to enabled on error
+      console.error('Failed to check if enabled:', error);
+      // Default to enabled if we can't check
+      setIsEnabled(true);
     }
   };
 
   const loadData = async () => {
-    setLoading(true);
     try {
-      // Check if user is authenticated
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
+      if (isRestrictedContext) {
+        // In restricted context, show minimal data
+        setRecentLinks([]);
+        setSmartCollections([]);
+        setQuickStats([
+          { label: 'Links Saved', value: 0, icon: <Bookmark size={20} />, color: '#3b82f6' },
+          { label: 'Collections', value: 0, icon: <Folder size={20} />, color: '#8b5cf6' },
+          { label: 'This Week', value: 0, icon: <Calendar size={20} />, color: '#10b981' },
+          { label: 'Streak', value: 0, icon: <Flame size={20} />, color: '#f59e0b' }
+        ]);
+        setCurrentStreak(0);
         setLoading(false);
         return;
       }
 
-      const [data, activityStats] = await Promise.all([
-        storage.getData(),
-        storage.getActivityStats()
-      ]);
-
-      // Get recent links (last 8)
-      const recent = data.links
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .slice(0, 8);
-      setRecentLinks(recent);
-
-      // Get smart collections
+      const data = await storage.getData();
+      const recentSaves = data.links
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 6);
+      
+      setRecentLinks(recentSaves);
       setSmartCollections(data.smartCollections || []);
+      
+      // Calculate stats
+      const thisWeekStart = new Date();
+      thisWeekStart.setDate(thisWeekStart.getDate() - 7);
+      const thisWeekCount = data.links.filter(link => 
+        new Date(link.createdAt) >= thisWeekStart
+      ).length;
 
-      // Set current streak
-      setCurrentStreak(activityStats.currentStreak);
-
-      // Set quick stats
-      setQuickStats([
-        {
-          label: 'Links Saved',
-          value: data.links.length,
-          icon: <Bookmark size={20} />,
-          color: '#3b82f6'
-        },
-        {
-          label: 'Collections',
-          value: data.collections.length,
-          icon: <Archive size={20} />,
-          color: '#8b5cf6'
-        },
-        {
-          label: 'This Week',
-          value: activityStats.thisWeekActivity,
-          icon: <Calendar size={20} />,
-          color: '#10b981'
-        },
-        {
-          label: 'Streak',
-          value: activityStats.currentStreak,
-          icon: <Flame size={20} />,
-          color: '#f59e0b'
+      // Calculate current streak
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let streak = 0;
+      let checkDate = new Date(today);
+      
+      while (true) {
+        const dayStart = new Date(checkDate);
+        const dayEnd = new Date(checkDate);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const hasActivityThisDay = data.links.some(link => {
+          const linkDate = new Date(link.createdAt);
+          return linkDate >= dayStart && linkDate <= dayEnd;
+        });
+        
+        if (hasActivityThisDay) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
         }
+      }
+
+      setCurrentStreak(streak);
+      
+      setQuickStats([
+        { label: 'Links Saved', value: data.links.length, icon: <Bookmark size={20} />, color: '#3b82f6' },
+        { label: 'Collections', value: data.collections.length, icon: <Folder size={20} />, color: '#8b5cf6' },
+        { label: 'This Week', value: thisWeekCount, icon: <Calendar size={20} />, color: '#10b981' },
+        { label: 'Streak', value: streak, icon: <Flame size={20} />, color: '#f59e0b' }
       ]);
     } catch (error) {
-      console.error('Failed to load new tab data:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
@@ -121,6 +164,11 @@ const NewTab: React.FC = () => {
 
   const loadDarkModeSetting = async () => {
     try {
+      if (isRestrictedContext) {
+        // In restricted context, skip dark mode detection
+        return;
+      }
+
       const result = await chrome.storage.local.get('nest_settings');
       const settings = result.nest_settings || {};
       if (settings.darkMode) {
@@ -140,26 +188,80 @@ const NewTab: React.FC = () => {
     return 'Good evening';
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      // Open sidepanel with search
-      chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-      // Store search term for sidepanel to pick up
-      chrome.storage.local.set({ 'nest_search_query': searchTerm.trim() });
+      if (isRestrictedContext) {
+        // Show user-friendly message when APIs are not available
+        alert('Search functionality is not available when the new tab override is disabled in browser settings. Please re-enable Nest as your new tab page or use the extension popup/sidebar instead.');
+        return;
+      }
+
+      try {
+        // Get the current window ID dynamically instead of using WINDOW_ID_CURRENT
+        const windows = await chrome.windows.getCurrent();
+        if (windows && windows.id && windows.id > 0) {
+          await chrome.sidePanel.open({ windowId: windows.id });
+          // Store search term for sidepanel to pick up
+          await chrome.storage.local.set({ 'nest_search_query': searchTerm.trim() });
+        } else {
+          console.error('Could not get valid current window for search');
+          throw new Error('Invalid window ID');
+        }
+      } catch (error) {
+        console.error('Failed to open sidepanel for search:', error);
+        // Fallback: try to send message to background script
+        try {
+          await chrome.runtime.sendMessage({ action: 'openSidePanel' });
+          await chrome.storage.local.set({ 'nest_search_query': searchTerm.trim() });
+        } catch (fallbackError) {
+          console.error('Fallback sidepanel open also failed:', fallbackError);
+          alert('Unable to open search. Please try clicking the extension icon in the browser toolbar.');
+        }
+      }
     }
   };
 
   const handleSaveCurrentPage = async () => {
+    if (isRestrictedContext) {
+      alert('Save functionality is not available when the new tab override is disabled in browser settings. Please click the extension icon in the browser toolbar to save pages.');
+      return;
+    }
+
     try {
       await chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
     } catch (error) {
       console.error('Failed to save current page:', error);
+      alert('Unable to save page. Please try clicking the extension icon in the browser toolbar.');
     }
   };
 
-  const handleOpenSidepanel = () => {
-    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+  const handleOpenSidepanel = async () => {
+    if (isRestrictedContext) {
+      // Show user-friendly message when APIs are not available
+      alert('Sidepanel functionality is not available when the new tab override is disabled in browser settings. Please re-enable Nest as your new tab page or click the extension icon in the browser toolbar.');
+      return;
+    }
+
+    try {
+      // Get the current window ID dynamically instead of using WINDOW_ID_CURRENT
+      const windows = await chrome.windows.getCurrent();
+      if (windows && windows.id && windows.id > 0) {
+        await chrome.sidePanel.open({ windowId: windows.id });
+      } else {
+        console.error('Could not get valid current window for sidepanel');
+        throw new Error('Invalid window ID');
+      }
+    } catch (error) {
+      console.error('Failed to open sidepanel:', error);
+      // Fallback: try to send message to background script
+      try {
+        await chrome.runtime.sendMessage({ action: 'openSidePanel' });
+      } catch (fallbackError) {
+        console.error('Fallback sidepanel open also failed:', fallbackError);
+        alert('Unable to open sidepanel. Please try clicking the extension icon in the browser toolbar.');
+      }
+    }
   };
 
   const handleLinkClick = async (link: SavedLink) => {
@@ -173,14 +275,26 @@ const NewTab: React.FC = () => {
   };
 
   const handleToggleNewTab = async () => {
+    if (isRestrictedContext) {
+      alert('Settings cannot be changed when the extension is in restricted mode. Please re-enable Nest as your new tab page in browser settings.');
+      return;
+    }
+
     const newValue = !isEnabled;
     setIsEnabled(newValue);
-    await chrome.storage.local.set({ 'nest_newtab_enabled': newValue });
     
-    if (!newValue) {
-      // Show a simple page with option to re-enable
-      // Don't redirect to chrome://newtab/ as this doesn't work properly
-      // The disabled state is handled by the component rendering
+    try {
+      await chrome.storage.local.set({ 'nest_newtab_enabled': newValue });
+      
+      if (!newValue) {
+        // Show a simple page with option to re-enable
+        // Don't redirect to chrome://newtab/ as this doesn't work properly
+        // The disabled state is handled by the component rendering
+      }
+    } catch (error) {
+      console.error('Failed to toggle new tab setting:', error);
+      // Revert the state if saving failed
+      setIsEnabled(!newValue);
     }
   };
 
@@ -214,6 +328,17 @@ const NewTab: React.FC = () => {
 
   return (
     <div className="newtab-container">
+      {/* Restricted Context Banner */}
+      {isRestrictedContext && (
+        <div className="restricted-context-banner">
+          <AlertTriangle size={20} />
+          <div className="banner-content">
+            <strong>Limited Functionality</strong>
+            <span>Some features are disabled because Nest new tab override was disabled in browser settings. Click the extension icon in the toolbar for full functionality.</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="newtab-header">
         <div className="header-left">
@@ -232,10 +357,19 @@ const NewTab: React.FC = () => {
           </div>
         </div>
         <div className="header-actions">
-          <button onClick={handleToggleNewTab} className="header-button" title="Disable Nest New Tab">
+          <button 
+            onClick={handleToggleNewTab} 
+            className="header-button" 
+            title={isRestrictedContext ? "Settings unavailable in restricted mode" : "Disable Nest New Tab"}
+            disabled={isRestrictedContext}
+          >
             <EyeOff size={18} />
           </button>
-          <button onClick={handleOpenSidepanel} className="header-button" title="Open Nest Sidepanel">
+          <button 
+            onClick={handleOpenSidepanel} 
+            className="header-button" 
+            title={isRestrictedContext ? "Limited functionality - use toolbar icon instead" : "Open Nest Sidepanel"}
+          >
             <Settings size={18} />
           </button>
         </div>
