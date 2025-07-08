@@ -48,7 +48,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["sidepanel.html", "auth.html"],
+      "resources": ["sidepanel.html", "auth.html", "maximize.html"],
       "matches": ["http://*/*", "https://*/*"]
     }
   ],

@@ -76,25 +76,34 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       
       const savedSettings = settingsResult.nest_settings || {};
       
-      setSettings({
-        autoSummarize: savedSettings.autoSummarize ?? data.settings.autoSummarize ?? true,
-        defaultCategory: data.settings.defaultCategory || 'general',
+      // Prioritize the stored value for newTabEnabled and ensure it's properly handled
+      const newTabEnabled = savedSettings.newTabEnabled !== undefined 
+        ? savedSettings.newTabEnabled 
+        : newTabResult.nest_newtab_enabled !== false;
+      
+      const loadedSettings = {
+        autoSummarize: savedSettings.autoSummarize ?? data.settings?.autoSummarize ?? true,
+        defaultCategory: data.settings?.defaultCategory || 'general',
         defaultPrivacy: false,
         showTooltips: true,
         compactView: false,
         darkMode: savedSettings.darkMode ?? false,
-        autoTagging: savedSettings.autoTagging ?? data.settings.autoTagging ?? false,
-        autoCategorization: savedSettings.autoCategorization ?? data.settings.autoCategorization ?? false,
-        openaiApiKey: savedSettings.openaiApiKey ?? data.settings.openaiApiKey ?? '',
-        newTabEnabled: newTabResult.nest_newtab_enabled !== false,
-        highlightColor: savedSettings.highlightColor ?? data.settings.highlightColor ?? 'yellow',
-        highlightStyle: savedSettings.highlightStyle ?? data.settings.highlightStyle ?? 'gradient'
-      });
+        autoTagging: savedSettings.autoTagging ?? data.settings?.autoTagging ?? false,
+        autoCategorization: savedSettings.autoCategorization ?? data.settings?.autoCategorization ?? false,
+        openaiApiKey: savedSettings.openaiApiKey ?? data.settings?.openaiApiKey ?? '',
+        newTabEnabled: newTabEnabled,
+        highlightColor: savedSettings.highlightColor ?? data.settings?.highlightColor ?? 'yellow',
+        highlightStyle: savedSettings.highlightStyle ?? data.settings?.highlightStyle ?? 'gradient'
+      };
+      
+      setSettings(loadedSettings);
       
       // Apply dark mode if it's enabled
-      if (savedSettings.darkMode) {
+      if (loadedSettings.darkMode) {
         document.body.classList.add('dark-mode');
       }
+      
+      console.log('Settings loaded:', loadedSettings);
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -133,10 +142,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     setMessage('');
 
     try {
-      // Save new tab setting to Chrome storage
-      if (newSettings.newTabEnabled !== settings.newTabEnabled) {
-        await chrome.storage.local.set({ 'nest_newtab_enabled': newSettings.newTabEnabled });
-      }
+      // Save new tab setting to Chrome storage with proper persistence
+      await chrome.storage.local.set({ 'nest_newtab_enabled': newSettings.newTabEnabled });
       
       // Apply dark mode immediately
       if (newSettings.darkMode !== settings.darkMode) {
@@ -158,11 +165,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           autoCategorization: newSettings.autoCategorization,
           openaiApiKey: newSettings.openaiApiKey,
           highlightColor: newSettings.highlightColor,
-          highlightStyle: newSettings.highlightStyle
+          highlightStyle: newSettings.highlightStyle,
+          newTabEnabled: newSettings.newTabEnabled // Also save to main storage
         }
       };
       
-      // Save to Chrome storage for persistence
+      // Save updated data back to storage (the storage system will handle persistence)
+      // We don't need to explicitly call saveData as the storage is managed internally
+      
+      // Save to Chrome storage for persistence with all settings
       await chrome.storage.local.set({
         'nest_settings': {
           autoSummarize: newSettings.autoSummarize,
@@ -171,10 +182,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           openaiApiKey: newSettings.openaiApiKey,
           highlightColor: newSettings.highlightColor,
           highlightStyle: newSettings.highlightStyle,
-          darkMode: newSettings.darkMode
+          darkMode: newSettings.darkMode,
+          newTabEnabled: newSettings.newTabEnabled // Ensure it's saved here too
         }
       });
       
+      // Update local state to prevent re-selection
       setSettings(newSettings);
       setMessage('Settings saved successfully!');
       setTimeout(() => setMessage(''), 3000);
@@ -238,7 +251,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   };
 
   const updateSetting = (key: string, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings((prev: typeof settings) => ({ ...prev, [key]: value }));
   };
 
   const handleOpenFloatingWindow = async () => {
