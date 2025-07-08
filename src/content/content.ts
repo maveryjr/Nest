@@ -7,6 +7,8 @@ import ReactDOM from 'react-dom/client';
 import FloatingAI from './FloatingAI';
 import StickyNotes from './StickyNotes';
 import ScreenshotTool from './ScreenshotTool';
+import { mediaProcessor } from '../utils/mediaProcessor';
+import { MediaContent } from '../types';
 
 // ===============================================
 // Global Keyboard Shortcuts
@@ -145,12 +147,33 @@ function isProblematicSite(): boolean {
 }
 
 // Listen for messages from background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   console.log('Content Script: Message received:', request);
   if (request.action === 'getPageContent') {
     const content = extractPageContent();
     console.log('Content Script: Sending page content, length:', content.length);
     sendResponse({ content });
+  } else if (request.action === 'getEnhancedPageContent') {
+    try {
+      const enhancedContent = await extractEnhancedPageContent();
+      console.log('Content Script: Sending enhanced page content:', enhancedContent.contentType);
+      sendResponse({ enhancedContent });
+    } catch (error) {
+      console.error('Enhanced content extraction failed:', error);
+      // Fallback to basic content
+      const content = extractPageContent();
+      sendResponse({ 
+        enhancedContent: {
+          content,
+          contentType: 'webpage',
+          metadata: {
+            url: window.location.href,
+            domain: window.location.hostname,
+            extractedAt: new Date().toISOString()
+          }
+        }
+      });
+    }
   } else if (request.action === 'showSaveConfirmation') {
     showSaveConfirmation();
   } else if (request.action === 'showHighlightConfirmation') {
@@ -538,7 +561,144 @@ document.addEventListener('click', (event) => {
   }
 });
 
+// Legacy function for backward compatibility
 function extractPageContent(): string {
+  return extractWebpageContent();
+}
+
+/**
+ * Enhanced content extraction with multimodal support
+ */
+async function extractEnhancedPageContent(): Promise<{
+  content: string;
+  contentType: string;
+  metadata: Record<string, any>;
+  mediaContent?: MediaContent;
+}> {
+  const url = window.location.href;
+  const title = document.title;
+  const domain = window.location.hostname;
+
+  // Detect content type
+  const contentType = detectContentType(url, title, domain);
+  
+  // Extract metadata
+  const metadata = extractMetadata(contentType, url, domain);
+  
+  // Handle different content types
+  let content = '';
+  let mediaContent: MediaContent | undefined;
+
+  try {
+    switch (contentType) {
+      case 'pdf':
+        content = await extractPDFContent();
+        break;
+      case 'video':
+        const videoData = await extractVideoContent();
+        content = videoData.content;
+        mediaContent = videoData.mediaContent;
+        break;
+      case 'social':
+        const socialData = await extractSocialContent(domain);
+        content = socialData.content;
+        mediaContent = socialData.mediaContent;
+        break;
+      case 'email':
+        const emailData = await extractEmailContent();
+        content = emailData.content;
+        mediaContent = emailData.mediaContent;
+        break;
+      default:
+        content = extractWebpageContent();
+    }
+  } catch (error) {
+    console.error('Enhanced content extraction failed:', error);
+    content = extractWebpageContent(); // Fallback to basic extraction
+  }
+
+  return {
+    content,
+    contentType,
+    metadata,
+    mediaContent,
+  };
+}
+
+/**
+ * Detect content type based on URL and page characteristics
+ */
+function detectContentType(url: string, title: string, domain: string): string {
+  // PDF detection
+  if (url.includes('.pdf') || document.querySelector('embed[type="application/pdf"]')) {
+    return 'pdf';
+  }
+
+  // Video platforms
+  if (domain.includes('youtube.com') || domain.includes('youtu.be') || 
+      domain.includes('vimeo.com') || domain.includes('twitch.tv')) {
+    return 'video';
+  }
+
+  // Social media platforms
+  if (domain.includes('twitter.com') || domain.includes('x.com') ||
+      domain.includes('linkedin.com') || domain.includes('medium.com') ||
+      domain.includes('facebook.com') || domain.includes('instagram.com')) {
+    return 'social';
+  }
+
+  // Email interfaces
+  if (domain.includes('gmail.com') || domain.includes('outlook.') ||
+      domain.includes('mail.') || title.toLowerCase().includes('email')) {
+    return 'email';
+  }
+
+  return 'webpage';
+}
+
+/**
+ * Extract metadata specific to content type
+ */
+function extractMetadata(contentType: string, url: string, domain: string): Record<string, any> {
+  const metadata: Record<string, any> = {
+    url,
+    domain,
+    extractedAt: new Date().toISOString(),
+  };
+
+  // Extract Open Graph metadata
+  const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
+  const ogDescription = document.querySelector('meta[property="og:description"]')?.getAttribute('content');
+  const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
+  const ogAuthor = document.querySelector('meta[name="author"]')?.getAttribute('content');
+  const ogPublished = document.querySelector('meta[property="article:published_time"]')?.getAttribute('content');
+
+  if (ogTitle) metadata.ogTitle = ogTitle;
+  if (ogDescription) metadata.ogDescription = ogDescription;
+  if (ogImage) metadata.ogImage = ogImage;
+  if (ogAuthor) metadata.author = ogAuthor;
+  if (ogPublished) metadata.publishDate = ogPublished;
+
+  // Content-specific metadata
+  switch (contentType) {
+    case 'video':
+      metadata.videoData = extractVideoMetadata();
+      break;
+    case 'social':
+      metadata.socialData = extractSocialMetadata(domain);
+      break;
+    case 'email':
+      metadata.emailData = extractEmailMetadata();
+      break;
+  }
+
+  return metadata;
+}
+
+/**
+ * Traditional webpage content extraction
+ */
+function extractWebpageContent(): string {
   // Remove script and style elements
   const elementsToRemove = document.querySelectorAll('script, style, nav, header, footer, .ad, .advertisement');
   const clonedDoc = document.cloneNode(true) as Document;
@@ -580,6 +740,181 @@ function extractPageContent(): string {
   }
 
   return text;
+}
+
+/**
+ * Extract PDF content (if embedded)
+ */
+async function extractPDFContent(): Promise<string> {
+  try {
+    // Look for embedded PDF
+    const pdfEmbed = document.querySelector('embed[type="application/pdf"]') as HTMLEmbedElement;
+    if (pdfEmbed && pdfEmbed.src) {
+      return `PDF Document: ${pdfEmbed.src}\n\nTitle: ${document.title}`;
+    }
+    
+    // If this is a direct PDF URL, the browser might have rendered it
+    const textContent = document.body?.textContent || '';
+    return textContent.trim() || `PDF: ${document.title}`;
+  } catch (error) {
+    console.error('PDF extraction failed:', error);
+    return `PDF: ${document.title}`;
+  }
+}
+
+/**
+ * Extract video content and metadata
+ */
+async function extractVideoContent(): Promise<{content: string; mediaContent?: MediaContent}> {
+  try {
+    let content = '';
+    let timestamp: number | undefined;
+    
+    // YouTube-specific extraction
+    if (window.location.hostname.includes('youtube.com')) {
+      // Get video title and description
+      const title = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent || 
+                   document.querySelector('#title h1')?.textContent ||
+                   document.title;
+      const description = document.querySelector('#description-text')?.textContent || 
+                         document.querySelector('#meta-contents #description')?.textContent || '';
+      
+      // Extract timestamp from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const t = urlParams.get('t');
+      if (t) {
+        timestamp = parseInt(t);
+      }
+      
+      content = `${title}\n\n${description}`;
+      
+      return {
+        content,
+        mediaContent: {
+          type: 'video',
+          originalData: window.location.href,
+          extractedText: content,
+          metadata: {
+            platform: 'youtube',
+            timestamp,
+            title,
+            description,
+          }
+        }
+      };
+    }
+    
+    // Generic video extraction
+    content = document.title + '\n\n' + extractWebpageContent();
+    return { content };
+  } catch (error) {
+    console.error('Video extraction failed:', error);
+    return { content: document.title + '\n\n' + extractWebpageContent() };
+  }
+}
+
+/**
+ * Extract social media content
+ */
+async function extractSocialContent(domain: string): Promise<{content: string; mediaContent?: MediaContent}> {
+  try {
+    const pageHTML = document.documentElement.outerHTML;
+    const mediaContent = await mediaProcessor.processSocialPost(pageHTML, domain);
+    
+    return {
+      content: mediaContent.extractedText || extractWebpageContent(),
+      mediaContent,
+    };
+  } catch (error) {
+    console.error('Social content extraction failed:', error);
+    return { content: extractWebpageContent() };
+  }
+}
+
+/**
+ * Extract email content
+ */
+async function extractEmailContent(): Promise<{content: string; mediaContent?: MediaContent}> {
+  try {
+    const emailHTML = document.documentElement.outerHTML;
+    const emailMetadata = extractEmailMetadata();
+    
+    const mediaContent = await mediaProcessor.processEmail(emailHTML, emailMetadata);
+    
+    return {
+      content: mediaContent.extractedText || extractWebpageContent(),
+      mediaContent,
+    };
+  } catch (error) {
+    console.error('Email extraction failed:', error);
+    return { content: extractWebpageContent() };
+  }
+}
+
+/**
+ * Extract video-specific metadata
+ */
+function extractVideoMetadata(): Record<string, any> {
+  const metadata: Record<string, any> = {};
+  
+  if (window.location.hostname.includes('youtube.com')) {
+    // YouTube specific metadata
+    const channelName = document.querySelector('#owner-name a')?.textContent ||
+                       document.querySelector('#upload-info #channel-name')?.textContent;
+    const viewCount = document.querySelector('#count')?.textContent ||
+                     document.querySelector('.view-count')?.textContent;
+    const uploadDate = document.querySelector('#date')?.textContent ||
+                      document.querySelector('#upload-date')?.textContent;
+    
+    if (channelName) metadata.channel = channelName;
+    if (viewCount) metadata.views = viewCount;
+    if (uploadDate) metadata.uploadDate = uploadDate;
+  }
+  
+  return metadata;
+}
+
+/**
+ * Extract social media metadata
+ */
+function extractSocialMetadata(domain: string): Record<string, any> {
+  const metadata: Record<string, any> = { platform: domain };
+  
+  if (domain.includes('twitter.com') || domain.includes('x.com')) {
+    const author = document.querySelector('[data-testid="User-Name"]')?.textContent;
+    const timestamp = document.querySelector('time')?.getAttribute('datetime');
+    
+    if (author) metadata.author = author;
+    if (timestamp) metadata.publishDate = timestamp;
+  } else if (domain.includes('linkedin.com')) {
+    const author = document.querySelector('.feed-shared-actor__name')?.textContent;
+    const company = document.querySelector('.feed-shared-actor__description')?.textContent;
+    
+    if (author) metadata.author = author;
+    if (company) metadata.company = company;
+  }
+  
+  return metadata;
+}
+
+/**
+ * Extract email metadata
+ */
+function extractEmailMetadata(): Record<string, any> {
+  const metadata: Record<string, any> = {};
+  
+  // Gmail specific
+  if (window.location.hostname.includes('gmail.com')) {
+    const subject = document.querySelector('h2[data-thread-id]')?.textContent ||
+                   document.querySelector('.hP')?.textContent;
+    const from = document.querySelector('.go span[email]')?.getAttribute('email') ||
+                document.querySelector('.gD')?.getAttribute('email');
+    
+    if (subject) metadata.subject = subject;
+    if (from) metadata.from = from;
+  }
+  
+  return metadata;
 }
 
 // Add visual feedback when page is saved

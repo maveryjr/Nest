@@ -23,6 +23,14 @@ export interface SavedLink {
   readingGoals?: string[]; // Goal IDs
   collaborativeFeatures?: CollaborativeFeatures;
   knowledgeGraphId?: string;
+  // Batch 1 - Multimodal enhancements
+  contentType?: 'webpage' | 'pdf' | 'image' | 'audio' | 'video' | 'email' | 'social';
+  mediaAttachments?: MediaAttachment[];
+  extractedText?: string;  // OCR or transcription text
+  videoTimestamp?: number; // For YouTube/video links (seconds)
+  author?: string;
+  publishDate?: Date;
+  sourceMetadata?: Record<string, any>; // Platform-specific metadata
 }
 
 export interface Highlight {
@@ -381,4 +389,103 @@ export interface ReadingGoal {
   endDate: Date;
   isActive: boolean;
   rewards?: string[];
+}
+
+// Batch 1 - New interfaces for multimodal content
+export interface MediaAttachment {
+  id: string;
+  type: 'image' | 'audio' | 'pdf' | 'video';
+  filename: string;
+  mimeType: string;
+  size: number; // bytes
+  dataURL?: string; // base64 data for small files
+  storageKey?: string; // key for larger files in cloud storage
+  extractedText?: string; // OCR or transcription
+  metadata: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface EmbeddingChunk {
+  id: string;
+  linkId: string;
+  chunkIndex: number;
+  text: string;
+  embedding: number[]; // 1536-dimensional vector for OpenAI ada-002
+  startIndex: number;
+  endIndex: number;
+  createdAt: Date;
+}
+
+export interface MediaContent {
+  type: 'image' | 'audio' | 'video' | 'pdf' | 'email' | 'social';
+  originalData: string | Blob | ArrayBuffer;
+  extractedText?: string;
+  metadata: {
+    filename?: string;
+    duration?: number; // for audio/video
+    pageCount?: number; // for PDFs
+    dimensions?: { width: number; height: number }; // for images
+    platform?: string; // for social media
+    author?: string;
+    publishDate?: Date;
+    [key: string]: any;
+  };
+}
+
+export interface QueryResult {
+  answer: string;
+  sources: Array<{
+    linkId: string;
+    title: string;
+    snippet: string;
+    relevanceScore: number;
+    url: string;
+  }>;
+  confidence: number;
+  queryEmbedding?: number[];
+  processingTimeMs: number;
+}
+
+export interface ActivityPattern {
+  userId: string;
+  preferredReadingTimes: number[]; // Hours of day (0-23)
+  averageSessionLength: number;    // Minutes
+  contentPreferences: Record<string, number>; // Domain/topic scores (0-1)
+  stalenessThresholds: Record<string, number>; // Days by content type
+  lastUpdated: Date;
+}
+
+export interface Suggestion {
+  id: string;
+  type: 'read_next' | 'archive' | 'organize' | 'review_highlights' | 'create_collection' | 'summarize_clear';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  title: string;
+  description: string;
+  actionData: any;
+  reasoning: string;
+  dismissible: boolean;
+  createdAt: Date;
+  expiresAt?: Date;
+}
+
+export interface LinkHealth {
+  linkId: string;
+  url: string;
+  status: 'healthy' | 'redirected' | 'dead' | 'unreachable' | 'checking';
+  statusCode?: number;
+  lastChecked: Date;
+  redirectUrl?: string;
+  alternativeUrls: string[];
+  errorCount: number;
+  rescueAttempts: number;
+}
+
+export interface DuplicateCandidate {
+  originalId: string;
+  duplicateId: string;
+  similarity: number; // 0-1 score
+  similarityReasons: string[];
+  mergeRecommendation: 'auto' | 'manual' | 'skip';
+  confidence: number;
+  createdAt: Date;
 } 

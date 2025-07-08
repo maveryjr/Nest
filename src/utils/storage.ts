@@ -38,6 +38,14 @@ class StorageManager {
         createdAt: new Date(dbLink.created_at),
         updatedAt: new Date(dbLink.updated_at),
         domain: dbLink.domain,
+        // Batch 1 - New multimodal fields
+        contentType: dbLink.content_type || 'webpage',
+        mediaAttachments: this.parseMediaAttachments(dbLink.media_attachments),
+        extractedText: dbLink.extracted_text,
+        videoTimestamp: dbLink.video_timestamp,
+        author: dbLink.author,
+        publishDate: dbLink.publish_date ? new Date(dbLink.publish_date) : undefined,
+        sourceMetadata: dbLink.source_metadata ? JSON.parse(dbLink.source_metadata) : undefined,
       };
     });
 
@@ -87,6 +95,14 @@ class StorageManager {
       category: link.category,
       is_in_inbox: link.isInInbox || false,
       highlights: link.highlights ? JSON.stringify(link.highlights) : null,
+      // Batch 1 - New multimodal fields
+      content_type: link.contentType || 'webpage',
+      media_attachments: link.mediaAttachments ? JSON.stringify(link.mediaAttachments) : null,
+      extracted_text: link.extractedText,
+      video_timestamp: link.videoTimestamp,
+      author: link.author,
+      publish_date: link.publishDate,
+      source_metadata: link.sourceMetadata ? JSON.stringify(link.sourceMetadata) : null,
     };
     console.log('Storage: addLink dbLink.highlights:', dbLink.highlights);
     const { data, error } = await supabase.from('links').insert(dbLink).select('id').single();
@@ -855,6 +871,14 @@ class StorageManager {
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
       domain: data.domain,
+      // Batch 1 - New multimodal fields
+      contentType: data.content_type || 'webpage',
+      mediaAttachments: this.parseMediaAttachments(data.media_attachments),
+      extractedText: data.extracted_text,
+      videoTimestamp: data.video_timestamp,
+      author: data.author,
+      publishDate: data.publish_date ? new Date(data.publish_date) : undefined,
+      sourceMetadata: data.source_metadata ? JSON.parse(data.source_metadata) : undefined,
     };
   }
 
@@ -880,6 +904,26 @@ class StorageManager {
       return highlightsData;
     }
     console.log('Storage: Highlights data in unexpected format:', typeof highlightsData, highlightsData);
+    return [];
+  }
+
+  // Helper function to safely parse media attachments
+  private parseMediaAttachments(attachmentsData: any): any[] {
+    if (!attachmentsData) {
+      return [];
+    }
+    if (typeof attachmentsData === 'string') {
+      try {
+        const parsed = JSON.parse(attachmentsData);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        console.warn('Failed to parse media attachments JSON:', error);
+        return [];
+      }
+    }
+    if (Array.isArray(attachmentsData)) {
+      return attachmentsData;
+    }
     return [];
   }
 

@@ -3,7 +3,7 @@ import {
   X, User, Palette, Database, Share2, Cog, Info, 
   Download, Trash2, Eye, EyeOff, Mail, Calendar,
   Tag, FileText, BarChart3, ExternalLink, HelpCircle, Sparkles,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Zap, Bot, Link, Bell
 } from 'lucide-react';
 import { storage } from '../../utils/storage';
 import { supabase } from '../../utils/supabase';
@@ -42,7 +42,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     autoCategorization: false,
     openaiApiKey: '',
     highlightColor: 'yellow',
-    highlightStyle: 'gradient'
+    highlightStyle: 'gradient',
+    enableEmbeddings: false,
+    enableCorpusChat: false,
+    // Phase 3: Smart Features
+    enableSmartSuggestions: true,
+    enableBackgroundProcessing: true,
+    enableNotifications: true,
+    enableLinkMonitoring: true,
+    enableDuplicateDetection: true,
+    enableDeadLinkRecovery: true,
+    linkCheckFrequency: 'daily',
+    suggestionFrequency: 'every4hours',
+    duplicateCheckFrequency: 'weekly'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -83,7 +95,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         autoCategorization: savedSettings.autoCategorization ?? data.settings?.autoCategorization ?? false,
         openaiApiKey: savedSettings.openaiApiKey ?? data.settings?.openaiApiKey ?? '',
         highlightColor: savedSettings.highlightColor ?? data.settings?.highlightColor ?? 'yellow',
-        highlightStyle: savedSettings.highlightStyle ?? data.settings?.highlightStyle ?? 'gradient'
+        highlightStyle: savedSettings.highlightStyle ?? data.settings?.highlightStyle ?? 'gradient',
+        enableEmbeddings: savedSettings.enableEmbeddings ?? data.settings?.enableEmbeddings ?? false,
+        enableCorpusChat: savedSettings.enableCorpusChat ?? data.settings?.enableCorpusChat ?? false,
+        // Phase 3: Smart Features
+        enableSmartSuggestions: savedSettings.enableSmartSuggestions ?? true,
+        enableBackgroundProcessing: savedSettings.enableBackgroundProcessing ?? true,
+        enableNotifications: savedSettings.enableNotifications ?? true,
+        enableLinkMonitoring: savedSettings.enableLinkMonitoring ?? true,
+        enableDuplicateDetection: savedSettings.enableDuplicateDetection ?? true,
+        enableDeadLinkRecovery: savedSettings.enableDeadLinkRecovery ?? true,
+        linkCheckFrequency: savedSettings.linkCheckFrequency ?? 'daily',
+        suggestionFrequency: savedSettings.suggestionFrequency ?? 'every4hours',
+        duplicateCheckFrequency: savedSettings.duplicateCheckFrequency ?? 'weekly'
       };
       
       setSettings(loadedSettings);
@@ -168,7 +192,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           openaiApiKey: newSettings.openaiApiKey,
           highlightColor: newSettings.highlightColor,
           highlightStyle: newSettings.highlightStyle,
-          darkMode: newSettings.darkMode
+          darkMode: newSettings.darkMode,
+          enableEmbeddings: newSettings.enableEmbeddings,
+          enableCorpusChat: newSettings.enableCorpusChat,
+          // Phase 3: Smart Features
+          enableSmartSuggestions: newSettings.enableSmartSuggestions,
+          enableBackgroundProcessing: newSettings.enableBackgroundProcessing,
+          enableNotifications: newSettings.enableNotifications,
+          enableLinkMonitoring: newSettings.enableLinkMonitoring,
+          enableDuplicateDetection: newSettings.enableDuplicateDetection,
+          enableDeadLinkRecovery: newSettings.enableDeadLinkRecovery,
+          linkCheckFrequency: newSettings.linkCheckFrequency,
+          suggestionFrequency: newSettings.suggestionFrequency,
+          duplicateCheckFrequency: newSettings.duplicateCheckFrequency
         }
       });
       
@@ -251,6 +287,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const tabs = [
     { id: 'account', label: 'Account', icon: User },
     { id: 'preferences', label: 'Preferences', icon: Palette },
+    { id: 'smart', label: 'Smart Features', icon: Zap },
     { id: 'digest', label: 'Daily Digest', icon: Mail },
     { id: 'data', label: 'Data', icon: Database },
     { id: 'sharing', label: 'Sharing', icon: Share2 },
@@ -474,8 +511,44 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                   className="setting-input"
                 />
                 <p className="setting-description">
-                  For enhanced AI features like auto-summarization and tagging
+                  For enhanced AI features like auto-summarization, tagging, and Ask Nest
                 </p>
+              </div>
+
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Enable Embeddings</div>
+                  <div className="setting-description">
+                    Build a searchable knowledge base using AI embeddings (requires OpenAI API key)
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableEmbeddings}
+                    onChange={(e) => updateSetting('enableEmbeddings', e.target.checked)}
+                    disabled={!settings.openaiApiKey || saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Enable Ask Nest Chat</div>
+                  <div className="setting-description">
+                    Chat with your saved content using AI (requires embeddings)
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableCorpusChat}
+                    onChange={(e) => updateSetting('enableCorpusChat', e.target.checked)}
+                    disabled={!settings.enableEmbeddings || saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
               </div>
             </div>
 
@@ -487,6 +560,272 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
               >
                 {saving ? 'Saving...' : 'Save Preferences'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'smart' && (
+          <div className="settings-content">
+            <div className="settings-section">
+              <h3>
+                <Zap size={18} className="inline mr-2" />
+                Smart Suggestions & Automation
+              </h3>
+              
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Smart Suggestions</div>
+                  <div className="setting-description">
+                    Get AI-powered suggestions for organizing your library and next-best actions
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableSmartSuggestions}
+                    onChange={(e) => updateSetting('enableSmartSuggestions', e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Background Processing</div>
+                  <div className="setting-description">
+                    Allow Nest to perform automated tasks in the background (link checks, suggestions, etc.)
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableBackgroundProcessing}
+                    onChange={(e) => updateSetting('enableBackgroundProcessing', e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item">
+                <label htmlFor="suggestion-frequency">Suggestion Generation Frequency</label>
+                <select
+                  id="suggestion-frequency"
+                  value={settings.suggestionFrequency || 'every4hours'}
+                  onChange={(e) => updateSetting('suggestionFrequency', e.target.value)}
+                  className="setting-select"
+                  disabled={!settings.enableSmartSuggestions || saving}
+                >
+                  <option value="hourly">Every Hour</option>
+                  <option value="every4hours">Every 4 Hours</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+                <p className="setting-description">
+                  How often to generate new smart suggestions
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>
+                <Link size={18} className="inline mr-2" />
+                Link Health Monitoring
+              </h3>
+              
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Link Monitoring</div>
+                  <div className="setting-description">
+                    Automatically check saved links for dead/broken URLs
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableLinkMonitoring}
+                    onChange={(e) => updateSetting('enableLinkMonitoring', e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Dead Link Recovery</div>
+                  <div className="setting-description">
+                    Automatically find archived versions of dead links using Wayback Machine
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableDeadLinkRecovery}
+                    onChange={(e) => updateSetting('enableDeadLinkRecovery', e.target.checked)}
+                    disabled={!settings.enableLinkMonitoring || saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item">
+                <label htmlFor="link-check-frequency">Link Check Frequency</label>
+                <select
+                  id="link-check-frequency"
+                  value={settings.linkCheckFrequency || 'daily'}
+                  onChange={(e) => updateSetting('linkCheckFrequency', e.target.value)}
+                  className="setting-select"
+                  disabled={!settings.enableLinkMonitoring || saving}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+                <p className="setting-description">
+                  How often to check link health (only recent links are checked)
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>
+                <Bot size={18} className="inline mr-2" />
+                Duplicate Detection & Management
+              </h3>
+              
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Duplicate Detection</div>
+                  <div className="setting-description">
+                    Automatically detect and suggest merging of duplicate links
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableDuplicateDetection}
+                    onChange={(e) => updateSetting('enableDuplicateDetection', e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item">
+                <label htmlFor="duplicate-check-frequency">Duplicate Check Frequency</label>
+                <select
+                  id="duplicate-check-frequency"
+                  value={settings.duplicateCheckFrequency || 'weekly'}
+                  onChange={(e) => updateSetting('duplicateCheckFrequency', e.target.value)}
+                  className="setting-select"
+                  disabled={!settings.enableDuplicateDetection || saving}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+                <p className="setting-description">
+                  How often to scan for duplicate content
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>
+                <Bell size={18} className="inline mr-2" />
+                Notifications
+              </h3>
+              
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div className="setting-label">Enable Notifications</div>
+                  <div className="setting-description">
+                    Get notified about dead links, suggestions, and other important updates
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.enableNotifications}
+                    onChange={(e) => updateSetting('enableNotifications', e.target.checked)}
+                    disabled={saving}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div className="settings-actions">
+              <button
+                onClick={() => saveSettings(settings)}
+                disabled={saving}
+                className="save-button"
+              >
+                {saving ? 'Saving...' : 'Save Smart Features'}
+              </button>
+            </div>
+
+            <div className="settings-section">
+              <h3>Manual Actions</h3>
+              <p className="setting-description mb-4">
+                Run these smart features manually to test them or get immediate results.
+              </p>
+              
+              <div className="setting-list">
+                <div className="setting-item-sidebar">
+                  <div className="setting-info">
+                    <Link size={16} />
+                    <div>
+                      <div className="setting-label">Check Link Health</div>
+                      <div className="setting-description">Manually check recent links for dead URLs</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        setMessage('Checking link health...');
+                        await chrome.runtime.sendMessage({ action: 'triggerHealthCheck' });
+                        setMessage('Link health check completed!');
+                        setTimeout(() => setMessage(''), 3000);
+                      } catch (error) {
+                        setMessage('Failed to check link health');
+                      }
+                    }}
+                    className="button-small"
+                    disabled={saving}
+                  >
+                    Check Now
+                  </button>
+                </div>
+                
+                <div className="setting-item-sidebar">
+                  <div className="setting-info">
+                    <Bot size={16} />
+                    <div>
+                      <div className="setting-label">Detect Duplicates</div>
+                      <div className="setting-description">Scan your library for potential duplicates</div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        setMessage('Detecting duplicates...');
+                        await chrome.runtime.sendMessage({ action: 'triggerDuplicateDetection' });
+                        setMessage('Duplicate detection completed!');
+                        setTimeout(() => setMessage(''), 3000);
+                      } catch (error) {
+                        setMessage('Failed to detect duplicates');
+                      }
+                    }}
+                    className="button-small"
+                    disabled={saving}
+                  >
+                    Scan Now
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

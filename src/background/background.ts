@@ -2,9 +2,14 @@ import { storage } from '../utils/storage';
 import { aiService } from '../utils/ai';
 import { SavedLink, Highlight } from '../types';
 import { AnalyticsService } from '../utils/analytics';
+import { embeddingsService } from '../utils/embeddings';
+import { linkMonitor } from '../utils/linkMonitor';
+import { suggestionEngine } from '../utils/suggestionEngine';
+import { duplicateDetector } from '../utils/duplicateDetector';
+import { archiveService } from '../utils/archiveService';
 
 // Initialize extension
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   // Create context menu
   chrome.contextMenus.create({
     id: 'saveToNest',
@@ -20,6 +25,9 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 
   console.log('Nest extension installed');
+  
+  // Initialize Phase 3 background monitoring
+  await initializePhase3Monitoring();
 });
 
 // Handle context menu clicks
@@ -195,10 +203,21 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
     }
 
     let pageContent = '';
+    let enhancedContent: any = null;
     if (tab.id) {
       try {
-        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
-        pageContent = response?.content || '';
+        // Try to get enhanced content first for multimodal support
+        const enhancedResponse = await chrome.tabs.sendMessage(tab.id, { action: 'getEnhancedPageContent' });
+        if (enhancedResponse?.enhancedContent) {
+          enhancedContent = enhancedResponse.enhancedContent;
+          pageContent = enhancedContent.content;
+          console.log('Background: Enhanced content extracted:', enhancedContent.contentType);
+        } else {
+          // Fallback to basic content
+          const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
+          pageContent = response?.content || '';
+          console.log('Background: Basic content extracted');
+        }
       } catch (error) {
         console.log('Could not extract page content:', error);
       }
@@ -241,6 +260,14 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
       category: category,
       domain: domain,
       isInInbox: true, // New links go to inbox by default
+      // Enhanced multimodal content
+      contentType: enhancedContent?.contentType || 'webpage',
+      mediaAttachments: enhancedContent?.mediaContent ? [enhancedContent.mediaContent] : undefined,
+      extractedText: enhancedContent?.mediaContent?.extractedText,
+      videoTimestamp: enhancedContent?.mediaContent?.metadata?.timestamp,
+      author: enhancedContent?.metadata?.author,
+      publishDate: enhancedContent?.metadata?.publishDate,
+      sourceMetadata: enhancedContent?.metadata,
     };
 
     console.log('Background: saveCurrentPage newLink:', JSON.stringify(newLink));
@@ -278,6 +305,11 @@ async function saveCurrentPage(tab: chrome.tabs.Tab, linkUrl?: string): Promise<
         hasAISummary: !!aiAnalysis.summary,
         autoTagged: userSettings.autoTagging,
         autoCategorized: userSettings.autoCategorization
+      });
+
+      // Process content for embeddings in the background (non-blocking)
+      processContentForEmbeddings(result.linkId, newLink, pageContent).catch(error => {
+        console.error('Background embedding processing failed:', error);
       });
     }
 
@@ -748,6 +780,46 @@ async function removeHighlightFromStorage(highlightId: string, url: string): Pro
   }
 } 
 
+/**
+ * Process content for embeddings in the background
+ */
+async function processContentForEmbeddings(linkId: string, linkData: any, content: string): Promise<void> {
+  try {
+    console.log('Background: Processing content for embeddings:', linkId);
+    
+    // Get user settings to check if embeddings are enabled and get API key
+    const settingsResult = await chrome.storage.local.get('nest_settings');
+    const userSettings = settingsResult.nest_settings || {};
+    
+    // Skip if embeddings are disabled or no API key
+    if (!userSettings.enableEmbeddings || !userSettings.openaiApiKey) {
+      console.log('Background: Embeddings disabled or no API key');
+      return;
+    }
+
+    // Process the content for embeddings
+    const embeddingData = {
+      id: linkId,
+      content: content,
+      metadata: {
+        title: linkData.title,
+        url: linkData.url,
+        domain: linkData.domain,
+        contentType: linkData.contentType,
+        author: linkData.author,
+        publishDate: linkData.publishDate,
+        createdAt: new Date().toISOString(),
+      }
+    };
+
+    await embeddingsService.processContent(embeddingData);
+    console.log('Background: Embeddings processed successfully for:', linkId);
+  } catch (error) {
+    console.error('Background: Failed to process embeddings:', error);
+    // Don't throw - this is background processing and shouldn't affect the main save operation
+  }
+}
+
 // Add floating window functionality
 async function handleOpenFloatingWindow() {
   try {
@@ -801,4 +873,461 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
   } catch (error) {
     console.error('Failed to clean up floating window ID:', error);
   }
+});
+
+// ============================================================================
+// PHASE 3: BACKGROUND MONITORING & INTELLIGENT AUTOMATION
+// ============================================================================
+
+/**
+ * Initialize Phase 3 background monitoring services
+ */
+async function initializePhase3Monitoring(): Promise<void> {
+  try {
+    console.log('Initializing Phase 3 background monitoring...');
+    
+    // Set up periodic alarms for background tasks
+    await setupPeriodicAlarms();
+    
+    // Register alarm listeners
+    chrome.alarms.onAlarm.addListener(handleAlarm);
+    
+    // Initialize monitoring services
+    await linkMonitor.initialize();
+    
+    console.log('Phase 3 monitoring initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize Phase 3 monitoring:', error);
+  }
+}
+
+/**
+ * Set up periodic alarms for background monitoring
+ */
+async function setupPeriodicAlarms(): Promise<void> {
+  try {
+    // Clear existing alarms
+    await chrome.alarms.clearAll();
+    
+    // Link health monitoring (every 24 hours)
+    await chrome.alarms.create('link-health-check', {
+      delayInMinutes: 1, // Start after 1 minute
+      periodInMinutes: 24 * 60 // Every 24 hours
+    });
+    
+    // Smart suggestions generation (every 4 hours)
+    await chrome.alarms.create('generate-suggestions', {
+      delayInMinutes: 5, // Start after 5 minutes
+      periodInMinutes: 4 * 60 // Every 4 hours
+    });
+    
+    // Duplicate detection (weekly)
+    await chrome.alarms.create('detect-duplicates', {
+      delayInMinutes: 10, // Start after 10 minutes
+      periodInMinutes: 7 * 24 * 60 // Every 7 days
+    });
+    
+    // Archive dead links (weekly)
+    await chrome.alarms.create('archive-dead-links', {
+      delayInMinutes: 15, // Start after 15 minutes
+      periodInMinutes: 7 * 24 * 60 // Every 7 days
+    });
+    
+    // Activity analysis and cleanup (daily)
+    await chrome.alarms.create('activity-analysis', {
+      delayInMinutes: 30, // Start after 30 minutes
+      periodInMinutes: 24 * 60 // Every 24 hours
+    });
+    
+    console.log('Periodic alarms set up successfully');
+  } catch (error) {
+    console.error('Failed to set up periodic alarms:', error);
+  }
+}
+
+/**
+ * Handle periodic alarm events
+ */
+async function handleAlarm(alarm: chrome.alarms.Alarm): Promise<void> {
+  try {
+    console.log(`Background: Handling alarm: ${alarm.name}`);
+    
+    // Check if user has enabled background processing
+    const settings = await chrome.storage.local.get('nest_settings');
+    const userSettings = settings.nest_settings || {};
+    
+    if (!userSettings.enableBackgroundProcessing) {
+      console.log('Background processing disabled by user');
+      return;
+    }
+    
+    switch (alarm.name) {
+      case 'link-health-check':
+        await performLinkHealthCheck();
+        break;
+        
+      case 'generate-suggestions':
+        await generateSmartSuggestions();
+        break;
+        
+      case 'detect-duplicates':
+        await performDuplicateDetection();
+        break;
+        
+      case 'archive-dead-links':
+        await performDeadLinkArchiving();
+        break;
+        
+      case 'activity-analysis':
+        await performActivityAnalysis();
+        break;
+        
+      default:
+        console.log(`Unknown alarm: ${alarm.name}`);
+    }
+  } catch (error) {
+    console.error(`Failed to handle alarm ${alarm.name}:`, error);
+  }
+}
+
+/**
+ * Perform periodic link health checks
+ */
+async function performLinkHealthCheck(): Promise<void> {
+  try {
+    console.log('Background: Starting link health check...');
+    
+    const data = await storage.getData();
+    const recentLinks = data.links
+      .filter(link => {
+        const daysSinceCreated = (Date.now() - new Date(link.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        return daysSinceCreated <= 30; // Check links from last 30 days
+      })
+      .slice(0, 20); // Limit to 20 links per check
+    
+    if (recentLinks.length === 0) {
+      console.log('No recent links to check');
+      return;
+    }
+    
+    const healthResults = await linkMonitor.checkLinksHealth(recentLinks.map(l => l.id));
+    
+    // Process results and send notifications for dead links
+    let deadLinkCount = 0;
+    for (const result of healthResults) {
+      if (result.status === 'dead') {
+        deadLinkCount++;
+      }
+    }
+    
+    if (deadLinkCount > 0) {
+      await sendNotification(
+        'Dead Links Detected',
+        `Found ${deadLinkCount} dead link${deadLinkCount > 1 ? 's' : ''} in your library. Check Nest for recovery options.`
+      );
+    }
+    
+    console.log(`Link health check completed: ${deadLinkCount} dead links found`);
+  } catch (error) {
+    console.error('Link health check failed:', error);
+  }
+}
+
+/**
+ * Generate smart suggestions in the background
+ */
+async function generateSmartSuggestions(): Promise<void> {
+  try {
+    console.log('Background: Generating smart suggestions...');
+    
+    const suggestions = await suggestionEngine.generateSuggestions();
+    
+    // Store suggestions for later retrieval
+    await chrome.storage.local.set({
+      nest_background_suggestions: {
+        suggestions,
+        generatedAt: new Date().toISOString(),
+        viewed: false
+      }
+    });
+    
+    // Send notification for high-priority suggestions
+    const urgentSuggestions = suggestions.filter(s => s.priority === 'urgent');
+    if (urgentSuggestions.length > 0) {
+      await sendNotification(
+        'Smart Suggestions Available',
+        `${urgentSuggestions.length} urgent suggestion${urgentSuggestions.length > 1 ? 's' : ''} for your library.`
+      );
+    }
+    
+    console.log(`Generated ${suggestions.length} smart suggestions`);
+  } catch (error) {
+    console.error('Smart suggestion generation failed:', error);
+  }
+}
+
+/**
+ * Perform duplicate detection in the background
+ */
+async function performDuplicateDetection(): Promise<void> {
+  try {
+    console.log('Background: Performing duplicate detection...');
+    
+    const duplicates = await duplicateDetector.findDuplicates();
+    const autoMergeable = duplicates.filter(d => d.mergeRecommendation === 'auto');
+    
+    // Store duplicate results
+    await chrome.storage.local.set({
+      nest_background_duplicates: {
+        duplicates,
+        autoMergeable: autoMergeable.length,
+        detectedAt: new Date().toISOString(),
+        reviewed: false
+      }
+    });
+    
+    if (duplicates.length > 0) {
+      await sendNotification(
+        'Duplicates Detected',
+        `Found ${duplicates.length} potential duplicate${duplicates.length > 1 ? 's' : ''}. ${autoMergeable.length} can be auto-merged.`
+      );
+    }
+    
+    console.log(`Duplicate detection completed: ${duplicates.length} found`);
+  } catch (error) {
+    console.error('Duplicate detection failed:', error);
+  }
+}
+
+/**
+ * Archive dead links using archive services
+ */
+async function performDeadLinkArchiving(): Promise<void> {
+  try {
+    console.log('Background: Performing dead link archiving...');
+    
+    const healthData = await linkMonitor.getHealthReport();
+    const deadLinkIds = healthData.deadLinks.slice(0, 10); // Limit to 10 for performance
+    
+    if (deadLinkIds.length === 0) {
+      console.log('No dead links to archive');
+      return;
+    }
+    
+    const archiveResults = await archiveService.batchFindArchives(deadLinkIds);
+    let recoveredCount = 0;
+    
+    // Auto-recover links that have high-confidence archived versions
+    for (const result of archiveResults) {
+      if (result.bestVersion && result.status === 'found') {
+        const success = await archiveService.replaceWithArchivedVersion(result.linkId, result.bestVersion);
+        if (success) {
+          recoveredCount++;
+        }
+      }
+    }
+    
+    // Store archive results
+    await chrome.storage.local.set({
+      nest_background_archives: {
+        results: archiveResults,
+        recoveredCount,
+        archivedAt: new Date().toISOString(),
+        reviewed: false
+      }
+    });
+    
+    if (recoveredCount > 0) {
+      await sendNotification(
+        'Links Recovered',
+        `Automatically recovered ${recoveredCount} dead link${recoveredCount > 1 ? 's' : ''} from archives.`
+      );
+    }
+    
+    console.log(`Dead link archiving completed: ${recoveredCount} recovered`);
+  } catch (error) {
+    console.error('Dead link archiving failed:', error);
+  }
+}
+
+/**
+ * Perform activity analysis and suggest cleanup actions
+ */
+async function performActivityAnalysis(): Promise<void> {
+  try {
+    console.log('Background: Performing activity analysis...');
+    
+    const data = await storage.getData();
+    
+    // Analyze old unread items (older than 30 days)
+    const oldUnreadItems = data.links.filter(link => {
+      const daysSinceCreated = (Date.now() - new Date(link.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceCreated > 30 && !link.lastViewedAt;
+    });
+    
+    // Analyze large inbox (more than 50 items)
+    const inboxSize = data.links.filter(link => !link.archived).length;
+    
+    let cleanupSuggestions = [];
+    
+    if (oldUnreadItems.length > 10) {
+      cleanupSuggestions.push({
+        type: 'archive_old_unread',
+        count: oldUnreadItems.length,
+        message: `Archive ${oldUnreadItems.length} old unread items`
+      });
+    }
+    
+    if (inboxSize > 50) {
+      cleanupSuggestions.push({
+        type: 'inbox_too_large',
+        count: inboxSize,
+        message: `Inbox has ${inboxSize} items - consider organizing`
+      });
+    }
+    
+    // Store analysis results
+    await chrome.storage.local.set({
+      nest_background_analysis: {
+        suggestions: cleanupSuggestions,
+        oldUnreadCount: oldUnreadItems.length,
+        inboxSize,
+        analyzedAt: new Date().toISOString(),
+        reviewed: false
+      }
+    });
+    
+    if (cleanupSuggestions.length > 0) {
+      await sendNotification(
+        'Library Cleanup Suggested',
+        `${cleanupSuggestions.length} cleanup suggestion${cleanupSuggestions.length > 1 ? 's' : ''} available.`
+      );
+    }
+    
+    console.log(`Activity analysis completed: ${cleanupSuggestions.length} suggestions`);
+  } catch (error) {
+    console.error('Activity analysis failed:', error);
+  }
+}
+
+/**
+ * Send notification to user
+ */
+async function sendNotification(title: string, message: string): Promise<void> {
+  try {
+    // Check if notifications are enabled
+    const settings = await chrome.storage.local.get('nest_settings');
+    const userSettings = settings.nest_settings || {};
+    
+    if (!userSettings.enableNotifications) {
+      console.log('Notifications disabled by user');
+      return;
+    }
+    
+    await chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title,
+      message
+    });
+  } catch (error) {
+    console.error('Failed to send notification:', error);
+  }
+}
+
+/**
+ * Handle messages related to Phase 3 features
+ */
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'getBackgroundSuggestions') {
+    (async () => {
+      try {
+        const result = await chrome.storage.local.get('nest_background_suggestions');
+        const suggestions = result.nest_background_suggestions || { suggestions: [] };
+        
+        // Mark as viewed
+        if (suggestions.suggestions.length > 0) {
+          await chrome.storage.local.set({
+            nest_background_suggestions: {
+              ...suggestions,
+              viewed: true
+            }
+          });
+        }
+        
+        sendResponse({ success: true, suggestions: suggestions.suggestions });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+  
+  if (request.action === 'getBackgroundDuplicates') {
+    (async () => {
+      try {
+        const result = await chrome.storage.local.get('nest_background_duplicates');
+        const duplicates = result.nest_background_duplicates || { duplicates: [] };
+        
+        sendResponse({ success: true, data: duplicates });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+  
+  if (request.action === 'getBackgroundArchives') {
+    (async () => {
+      try {
+        const result = await chrome.storage.local.get('nest_background_archives');
+        const archives = result.nest_background_archives || { results: [] };
+        
+        sendResponse({ success: true, data: archives });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+  
+  if (request.action === 'getBackgroundAnalysis') {
+    (async () => {
+      try {
+        const result = await chrome.storage.local.get('nest_background_analysis');
+        const analysis = result.nest_background_analysis || { suggestions: [] };
+        
+        sendResponse({ success: true, data: analysis });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+  
+  if (request.action === 'triggerHealthCheck') {
+    (async () => {
+      try {
+        await performLinkHealthCheck();
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+  
+  if (request.action === 'triggerDuplicateDetection') {
+    (async () => {
+      try {
+        await performDuplicateDetection();
+        sendResponse({ success: true });
+      } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+  
+  return false; // Let other message handlers process the message
 }); 

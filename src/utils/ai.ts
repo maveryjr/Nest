@@ -468,6 +468,127 @@ Content: ${content.substring(0, 1000)}...`;
   }
 
   /**
+   * Generate AI response with context from search results
+   */
+  async generateResponseWithContext(
+    query: string, 
+    searchResults: any[], 
+    metadata: any
+  ): Promise<{ response: string; confidence: number }> {
+    if (!this.apiKey) {
+      return this.generateRuleBasedResponse(query, searchResults);
+    }
+
+    try {
+      // Prepare context from search results
+      const context = searchResults
+        .slice(0, 5) // Use top 5 results
+        .map((result, index) => `[${index + 1}] ${result.content.substring(0, 500)}...`)
+        .join('\n\n');
+
+      const sources = searchResults
+        .slice(0, 5)
+        .map((result, index) => `[${index + 1}] ${result.metadata.title || 'Untitled'} - ${result.metadata.url || 'No URL'}`)
+        .join('\n');
+
+      const prompt = `Based on the following content from the user's saved knowledge base, answer their question comprehensively and accurately.
+
+User Question: ${query}
+
+Relevant Content:
+${context}
+
+Sources:
+${sources}
+
+Instructions:
+- Answer the question using only the information provided in the content above
+- Be specific and cite relevant details from the sources
+- If the content doesn't contain enough information to answer the question, say so clearly
+- Format your response in a clear, helpful manner
+- When referencing information, mention which source it came from using [1], [2], etc.
+
+Answer:`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful AI assistant that answers questions based on the user\'s saved content. Always be accurate and cite your sources.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: 800,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices[0]?.message?.content || 'I apologize, but I couldn\'t generate a response.';
+
+      // Calculate confidence based on search result quality
+      const avgSimilarity = searchResults.length > 0 
+        ? searchResults.reduce((sum, r) => sum + r.similarity, 0) / searchResults.length 
+        : 0;
+      
+      const confidence = Math.min(0.95, avgSimilarity * 1.2);
+
+      return {
+        response: aiResponse,
+        confidence
+      };
+
+    } catch (error) {
+      console.error('Context-aware AI response failed:', error);
+      return this.generateRuleBasedResponse(query, searchResults);
+    }
+  }
+
+  /**
+   * Generate rule-based response when AI is not available
+   */
+  private generateRuleBasedResponse(query: string, searchResults: any[]): { response: string; confidence: number } {
+    if (searchResults.length === 0) {
+      return {
+        response: "I couldn't find any relevant content in your saved links to answer this question. Try saving more content or rephrasing your query.",
+        confidence: 0.1
+      };
+    }
+
+    const topResult = searchResults[0];
+    const relevantSnippet = topResult.content.substring(0, 300);
+    
+    let response = `Based on your saved content, here's what I found:\n\n${relevantSnippet}`;
+    
+    if (searchResults.length > 1) {
+      response += `\n\nI found ${searchResults.length} relevant items in your knowledge base. The most relevant appears to be "${topResult.metadata.title || 'Untitled'}"`;
+    }
+
+    if (topResult.metadata.url) {
+      response += `\n\nSource: ${topResult.metadata.url}`;
+    }
+
+    return {
+      response,
+      confidence: Math.min(0.7, topResult.similarity || 0.5)
+    };
+  }
+
+  /**
    * Generate smart collection queries based on user's link patterns
    */
   async generateSmartCollectionSuggestions(links: SavedLink[]): Promise<SmartCollection[]> {

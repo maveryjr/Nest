@@ -23,6 +23,7 @@ import AIInsights from './components/AIInsights';
 import FocusModeComponent from './components/FocusMode';
 import KnowledgeGraph from './components/KnowledgeGraph';
 import RichAnnotations from './components/RichAnnotations';
+import CorpusChat from './components/CorpusChat';
 
 interface UserTag {
   id: string;
@@ -75,6 +76,7 @@ const Sidepanel: React.FC = () => {
   const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
   const [showRichAnnotations, setShowRichAnnotations] = useState(false);
   const [annotationTarget, setAnnotationTarget] = useState<{type: 'link' | 'highlight', id: string} | null>(null);
+  const [showCorpusChat, setShowCorpusChat] = useState(false);
   const [compactView, setCompactView] = useState(false);
   const [isAIOrganizing, setIsAIOrganizing] = useState(false);
   const [isAIOrganizingHolding, setIsAIOrganizingHolding] = useState(false);
@@ -1106,6 +1108,11 @@ const Sidepanel: React.FC = () => {
             AI Insights
           </button>
           
+          <button onClick={() => setShowCorpusChat(true)} className="corpus-chat-button" title="Ask Nest - Chat with your knowledge">
+            <MessageCircle size={18} />
+            Ask Nest
+          </button>
+          
           <button onClick={() => setShowFocusMode(true)} className="focus-mode-button" title="Focus Mode">
             <Focus size={18} />
             Focus
@@ -1620,6 +1627,12 @@ const Sidepanel: React.FC = () => {
           targetId={annotationTarget.id}
         />
       )}
+
+      {/* Corpus Chat */}
+      <CorpusChat
+        isVisible={showCorpusChat}
+        onClose={() => setShowCorpusChat(false)}
+      />
 
       {/* Toast Notifications */}
       {showSuccessToast && (
