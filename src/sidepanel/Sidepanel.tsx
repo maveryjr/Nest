@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain, List, Grid3X3, Focus, Network, Mic, Edit, Maximize } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain, List, Grid3X3, Focus, Network, Mic, Edit, Maximize, Maximize2 } from 'lucide-react';
 import { SavedLink, Collection, StorageData, SmartCollection, VoiceMemo, RichNote } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
@@ -356,6 +356,17 @@ const Sidepanel: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to toggle screenshot tool:', error);
+    }
+  };
+
+  const openMaximizeView = async () => {
+    try {
+      // Open maximize view in a new tab
+      const maximizeUrl = chrome.runtime.getURL('maximize.html');
+      await chrome.tabs.create({ url: maximizeUrl });
+    } catch (error) {
+      console.error('Failed to open maximize view:', error);
+      showToast('Failed to open maximize view', 'error');
     }
   };
 
@@ -1124,6 +1135,9 @@ const Sidepanel: React.FC = () => {
             Annotate
           </button>
           
+          <button onClick={openMaximizeView} className="maximize-button" title="Open in full screen">
+            <Maximize2 size={18} />
+          </button>
           <button onClick={handleLogout} className="logout-button" title="Logout">
             <LogOut size={18} />
           </button>

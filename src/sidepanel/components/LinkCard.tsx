@@ -194,9 +194,57 @@ const LinkCard: React.FC<LinkCardProps> = ({
         positionUp: shouldPositionUp,
         positionLeft: shouldPositionLeft 
       });
+      
+      setShowMenu(true);
+    } else {
+      setShowMenu(false);
     }
-    setShowMenu(!showMenu);
   };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Check if the click is on a dropdown button or inside a dropdown menu
+      const isDropdownButton = target.closest('.action-button, .action-button-compact');
+      const isDropdownMenu = target.closest('.dropdown-menu');
+      
+      if (!isDropdownButton && !isDropdownMenu) {
+        setShowMenu(false);
+        setShowCollections(false);
+      }
+    };
+
+    if (showMenu) {
+      // Add listener immediately but prevent immediate closing with a flag
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('click', handleClickOutside, true); // Use capture phase
+      }, 10); // Reduced timeout for better responsiveness
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('click', handleClickOutside, true);
+      };
+    }
+  }, [showMenu]);
+
+  // Also close menu when other menus open
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowMenu(false);
+        setShowCollections(false);
+        setShowTagEditor(false);
+        setShowHighlights(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showMenu]);
 
   return (
     <div className={`link-card ${compactView ? 'compact' : ''}`}>

@@ -155,7 +155,8 @@ body {
 .logout-button,
 .floating-ai-button,
 .sticky-notes-button,
-.screenshot-button {
+.screenshot-button,
+.maximize-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,7 +185,8 @@ body {
 .logout-button,
 .floating-ai-button,
 .sticky-notes-button,
-.screenshot-button {
+.screenshot-button,
+.maximize-button {
   background: transparent;
   color: var(--ui-text-secondary);
 }
@@ -193,7 +195,8 @@ body {
 .logout-button:hover,
 .floating-ai-button:hover,
 .sticky-notes-button:hover,
-.screenshot-button:hover {
+.screenshot-button:hover,
+.maximize-button:hover {
   background: var(--color-gray-100);
   color: var(--ui-text-primary);
   transform: none;
@@ -223,6 +226,15 @@ body {
 
 .screenshot-button:hover {
   background: #8b5cf6;
+  color: var(--color-white);
+}
+
+.maximize-button {
+  color: #10b981;
+}
+
+.maximize-button:hover {
+  background: #10b981;
   color: var(--color-white);
 }
 

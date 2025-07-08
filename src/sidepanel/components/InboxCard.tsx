@@ -160,10 +160,15 @@ const InboxCard: React.FC<InboxCardProps> = ({
         positionUp: shouldPositionUp,
         positionLeft: shouldPositionLeft 
       });
+      
+      setShowMenu(true);
+      setShowCollectionsSubmenu(false);
+      console.log('Menu opened');
+    } else {
+      setShowMenu(false);
+      setShowCollectionsSubmenu(false);
+      console.log('Menu closed');
     }
-    setShowMenu(!showMenu);
-    setShowCollectionsSubmenu(false);
-    console.log('Menu will be shown:', !showMenu);
   };
 
   const handleMoveToCollection = (collectionId: string) => {
@@ -266,12 +271,30 @@ const InboxCard: React.FC<InboxCardProps> = ({
     };
 
     if (showMenu) {
-      // Use timeout to avoid immediate closing when menu opens
-      setTimeout(() => {
-        document.addEventListener('click', handleClickOutside);
-      }, 100);
+      // Add listener immediately but prevent immediate closing with a flag
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('click', handleClickOutside, true); // Use capture phase
+      }, 10); // Reduced timeout for better responsiveness
       
-      return () => document.removeEventListener('click', handleClickOutside);
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('click', handleClickOutside, true);
+      };
+    }
+  }, [showMenu]);
+
+  // Also close menu when other menus open
+  React.useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowMenu(false);
+        setShowCollectionsSubmenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
     }
   }, [showMenu]);
 
