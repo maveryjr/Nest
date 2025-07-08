@@ -51,7 +51,12 @@ const InboxCard: React.FC<InboxCardProps> = ({
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [menuPosition, setMenuPosition] = useState({ 
+    top: 0, 
+    left: 0, 
+    positionUp: false, 
+    positionLeft: false 
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleOpenLink = () => {
@@ -70,13 +75,32 @@ const InboxCard: React.FC<InboxCardProps> = ({
     e.stopPropagation();
     
     if (!showMenu) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const newPosition = {
-        top: rect.bottom + 4,
-        left: rect.right - 180 // Align right edge of menu with button
-      };
-      console.log('Setting menu position:', newPosition);
-      setMenuPosition(newPosition);
+      // Check if the dropdown would overflow the viewport or sidebar content area
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 240; // Approximate height
+      
+      // Find the sidebar content container to check for overflow
+      const sidebarContent = document.querySelector('.content');
+      const sidebarRect = sidebarContent?.getBoundingClientRect();
+      
+      // Determine if we need special positioning classes
+      let shouldPositionUp = buttonRect.bottom + dropdownHeight > viewportHeight;
+      
+      // Also check if we'd overflow the sidebar content area
+      if (sidebarRect) {
+        shouldPositionUp = shouldPositionUp || (buttonRect.bottom + dropdownHeight > sidebarRect.bottom);
+      }
+      
+      const shouldPositionLeft = buttonRect.right < 200; // If button is too close to right edge
+      
+      // Set CSS classes for positioning instead of manual coordinates
+      setMenuPosition({ 
+        top: 0, 
+        left: 0, 
+        positionUp: shouldPositionUp,
+        positionLeft: shouldPositionLeft 
+      });
     }
     setShowMenu(!showMenu);
     setShowCollectionsSubmenu(false);
@@ -238,7 +262,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
                 <MoreVertical size={14} />
               </button>
               {showMenu && (
-                <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                <div className={`dropdown-menu ${menuPosition.positionUp ? 'position-up' : ''} ${menuPosition.positionLeft ? 'position-left' : ''}`}>
                   <button
                     onClick={handleAISuggestionsClick}
                     className="dropdown-menu-item"
@@ -350,7 +374,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
                     </button>
 
                     {showMenu && (
-                      <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                      <div className={`dropdown-menu ${menuPosition.positionUp ? 'position-up' : ''} ${menuPosition.positionLeft ? 'position-left' : ''}`}>
                         <button
                           onClick={handleAISuggestionsClick}
                           className="dropdown-menu-item"

@@ -41,7 +41,12 @@ const LinkCard: React.FC<LinkCardProps> = ({
   const [linkTags, setLinkTags] = useState<LinkTag[]>([]);
   const [availableTags, setAvailableTags] = useState<LinkTag[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [menuPosition, setMenuPosition] = useState({ 
+    top: 0, 
+    left: 0, 
+    positionUp: false, 
+    positionLeft: false 
+  });
 
   // Load tags when component mounts or when tag editor is opened
   useEffect(() => {
@@ -158,10 +163,31 @@ const LinkCard: React.FC<LinkCardProps> = ({
   const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!showMenu) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setMenuPosition({
-        top: rect.bottom + 4,
-        left: rect.right - 180 // Align right edge of menu with button
+      // Check if the dropdown would overflow the viewport or sidebar content area
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 240; // Approximate height
+      
+      // Find the sidebar content container to check for overflow
+      const sidebarContent = document.querySelector('.content');
+      const sidebarRect = sidebarContent?.getBoundingClientRect();
+      
+      // Determine if we need special positioning classes
+      let shouldPositionUp = buttonRect.bottom + dropdownHeight > viewportHeight;
+      
+      // Also check if we'd overflow the sidebar content area
+      if (sidebarRect) {
+        shouldPositionUp = shouldPositionUp || (buttonRect.bottom + dropdownHeight > sidebarRect.bottom);
+      }
+      
+      const shouldPositionLeft = buttonRect.right < 200; // If button is too close to right edge
+      
+      // Set CSS classes for positioning instead of manual coordinates
+      setMenuPosition({ 
+        top: 0, 
+        left: 0, 
+        positionUp: shouldPositionUp,
+        positionLeft: shouldPositionLeft 
       });
     }
     setShowMenu(!showMenu);
@@ -217,7 +243,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
                 <MoreHorizontal size={14} />
               </button>
               {showMenu && (
-                <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                <div className={`dropdown-menu ${menuPosition.positionUp ? 'position-up' : ''} ${menuPosition.positionLeft ? 'position-left' : ''}`}>
                   <button onClick={() => {
                     onAddNote(link);
                     setShowMenu(false);
@@ -298,7 +324,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
                       <MoreHorizontal size={14} />
                     </button>
                     {showMenu && (
-                      <div className="dropdown-menu" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                      <div className={`dropdown-menu ${menuPosition.positionUp ? 'position-up' : ''} ${menuPosition.positionLeft ? 'position-left' : ''}`}>
                         <button onClick={() => {
                           onAddNote(link);
                           setShowMenu(false);

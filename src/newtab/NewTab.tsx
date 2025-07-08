@@ -50,9 +50,11 @@ const NewTab: React.FC = () => {
   const checkIfEnabled = async () => {
     try {
       const result = await chrome.storage.local.get('nest_newtab_enabled');
-      setIsEnabled(result.nest_newtab_enabled === true); // Default to disabled
+      // Default to enabled (true) instead of disabled - fix the missing logic
+      setIsEnabled(result.nest_newtab_enabled !== false);
     } catch (error) {
       console.error('Failed to check new tab setting:', error);
+      setIsEnabled(true); // Default to enabled on error
     }
   };
 
@@ -176,8 +178,9 @@ const NewTab: React.FC = () => {
     await chrome.storage.local.set({ 'nest_newtab_enabled': newValue });
     
     if (!newValue) {
-      // Redirect to default new tab
-      window.location.href = 'chrome://newtab/';
+      // Show a simple page with option to re-enable
+      // Don't redirect to chrome://newtab/ as this doesn't work properly
+      // The disabled state is handled by the component rendering
     }
   };
 
