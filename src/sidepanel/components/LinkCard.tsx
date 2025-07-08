@@ -180,7 +180,9 @@ const LinkCard: React.FC<LinkCardProps> = ({
         shouldPositionUp = shouldPositionUp || (buttonRect.bottom + dropdownHeight > sidebarRect.bottom);
       }
       
-      const shouldPositionLeft = buttonRect.right < 200; // If button is too close to right edge
+      // Check if dropdown would overflow right edge - if so, position it to the left of the button
+      const dropdownWidth = 200; // Approximate dropdown width
+      const shouldPositionLeft = buttonRect.right + dropdownWidth > window.innerWidth;
       
       // Set CSS classes for positioning instead of manual coordinates
       setMenuPosition({ 

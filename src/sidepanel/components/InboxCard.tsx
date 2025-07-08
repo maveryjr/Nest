@@ -17,6 +17,12 @@ import HighlightCard from './HighlightCard';
 import AISuggestions from './AISuggestions';
 import { storage } from '../../utils/storage';
 
+interface LinkTag {
+  id: string;
+  name: string;
+  usageCount?: number;
+}
+
 interface InboxCardProps {
   link: SavedLink;
   collections: Collection[];
@@ -51,6 +57,9 @@ const InboxCard: React.FC<InboxCardProps> = ({
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [linkTags, setLinkTags] = useState<LinkTag[]>([]);
+  const [availableTags, setAvailableTags] = useState<LinkTag[]>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ 
     top: 0, 
     left: 0, 
@@ -58,6 +67,52 @@ const InboxCard: React.FC<InboxCardProps> = ({
     positionLeft: false 
   });
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load tags when tag input is opened
+  React.useEffect(() => {
+    if (showTagInput) {
+      loadTags();
+    }
+  }, [showTagInput, link.id]);
+
+  const loadTags = async () => {
+    setLoadingTags(true);
+    try {
+      const [linkTagsData, availableTagsData] = await Promise.all([
+        storage.getLinkTags(link.id),
+        storage.getUserTags()
+      ]);
+      
+      setLinkTags(linkTagsData.map(tag => ({ ...tag, usageCount: 0 })));
+      setAvailableTags(availableTagsData);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+
+  const handleTagsChange = async (newTags: LinkTag[]) => {
+    try {
+      const tagNames = newTags.map(tag => tag.name);
+      const result = await storage.addTagsToLink(link.id, tagNames);
+      
+      if (result.success) {
+        setLinkTags(newTags);
+        // Refresh available tags to update usage counts
+        const updatedTags = await storage.getUserTags();
+        setAvailableTags(updatedTags);
+        
+        // Notify parent component that tags were updated
+        onTagsUpdated();
+        setShowTagInput(false);
+      } else {
+        console.error('Failed to update tags:', result.error);
+      }
+    } catch (error) {
+      console.error('Failed to update link tags:', error);
+    }
+  };
 
   const handleOpenLink = () => {
     onOpenDetail(link);
@@ -92,7 +147,9 @@ const InboxCard: React.FC<InboxCardProps> = ({
         shouldPositionUp = shouldPositionUp || (buttonRect.bottom + dropdownHeight > sidebarRect.bottom);
       }
       
-      const shouldPositionLeft = buttonRect.right < 200; // If button is too close to right edge
+      // Check if dropdown would overflow right edge - if so, position it to the left of the button
+      const dropdownWidth = 200; // Approximate dropdown width
+      const shouldPositionLeft = buttonRect.right + dropdownWidth > window.innerWidth;
       
       // Set CSS classes for positioning instead of manual coordinates
       setMenuPosition({ 
@@ -518,14 +575,25 @@ const InboxCard: React.FC<InboxCardProps> = ({
 
                 {showTagInput && (
                   <div className="inbox-card-tags">
-                    <TagInput
-                      linkId={link.id}
-                      onTagsUpdated={() => {
-                        onTagsUpdated();
-                        setShowTagInput(false);
-                      }}
-                      onCancel={() => setShowTagInput(false)}
-                    />
+                    <div className="tag-editor-header">
+                      <span>Edit Tags</span>
+                      <button 
+                        onClick={() => setShowTagInput(false)}
+                        className="tag-editor-close"
+                        title="Close tag editor"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    {loadingTags ? (
+                      <div className="tag-editor-loading">Loading tags...</div>
+                    ) : (
+                      <TagInput
+                        selectedTags={linkTags}
+                        availableTags={availableTags}
+                        onTagsChange={handleTagsChange}
+                      />
+                    )}
                   </div>
                 )}
               </div>

@@ -428,3 +428,35 @@ The extension now provides a comprehensive and polished knowledge management sys
 - **Production-Grade Polish**: Enterprise-level error handling and user feedback
 
 This represents a significant evolution from a simple bookmarking tool to an intelligent, accessible, and user-friendly reading and learning assistant with enterprise-grade polish and cutting-edge productivity features. 
+
+# Development Notes
+
+## Bug Fixes
+
+### Fixed Dropdown Positioning Logic (2024-12-19)
+
+**Issue:** The dropdown menu's horizontal positioning logic was flawed in both `LinkCard.tsx` and `InboxCard.tsx`. The `shouldPositionLeft` condition incorrectly checked if the button was near the left edge (`buttonRect.right < 200`) instead of detecting if the right-aligned dropdown would overflow the right edge of the viewport.
+
+**Solution:** 
+- Updated positioning logic to check `buttonRect.right + dropdownWidth > window.innerWidth`
+- Added proper dropdown width calculation (200px approximation)
+- This ensures dropdowns position correctly to avoid off-screen display
+
+**Files Changed:**
+- `src/sidepanel/components/InboxCard.tsx` - Line 95
+- `src/sidepanel/components/LinkCard.tsx` - Line 182
+
+### Fixed TagInput Component Interface (2024-12-19)
+
+**Issue:** `InboxCard.tsx` was using incorrect props for the `TagInput` component, causing TypeScript linter errors. The component was passing `linkId`, `onTagsUpdated`, and `onCancel` props, but the actual interface expects `selectedTags`, `availableTags`, and `onTagsChange`.
+
+**Solution:**
+- Added proper state management (`linkTags`, `availableTags`, `loadingTags`)
+- Implemented `loadTags()` and `handleTagsChange()` functions similar to `LinkCard.tsx`
+- Updated TagInput usage to match the correct interface
+- Added proper loading state and header UI for tag editing
+
+**Files Changed:**
+- `src/sidepanel/components/InboxCard.tsx` - Added state management and corrected TagInput props
+
+Both fixes ensure consistent dropdown positioning behavior and proper tag management functionality across the application. 
