@@ -1,10 +1,31 @@
 # Nest Extension Development Notes
 
-## 🚨 RECENT BUG FIXES (December 2024) - 8 Critical Issues Resolved ✅
+## 🚨 RECENT BUG FIXES (December 2024) - 9 Critical Issues Resolved ✅
 
 ### Major Issues Resolution - All Fixed!
 
-#### 1. ✅ FIXED: Dropdown Menu Positioning Issue
+#### 1. ✅ FIXED: New Tab Window ID Error (Edge Compatibility) + Restricted Context Detection
+- **Problem**: "Uncaught (in promise) Error: No window with id: -2" when users disable Nest new tab page in browser settings
+- **Root Cause**: Using `chrome.windows.WINDOW_ID_CURRENT` constant (-2) without proper window resolution when extension context is limited
+- **Enhanced Solution**: 
+  - **Context Detection**: Added `checkExtensionContext()` function to detect when APIs are restricted
+  - **API Validation**: Check if `chrome.windows`, `chrome.sidePanel`, and `chrome.storage` are available and functional
+  - **Window ID Validation**: Verify that `chrome.windows.getCurrent()` returns valid window ID (> 0)
+  - **Graceful Degradation**: Show appropriate UI and user-friendly messages when APIs are unavailable
+  - **Visual Indicators**: Added yellow banner at top of page when in restricted mode
+  - **Fallback Messaging**: Comprehensive error handling with background script fallback
+- **Files Modified**: 
+  - `src/newtab/NewTab.tsx` - Added context detection and improved error handling
+  - `src/newtab/newtab.css` - Added restricted context banner styling
+- **Technical Implementation**:
+  - **Context Check**: `if (!chrome?.windows || !chrome?.sidePanel || !chrome?.storage)` detection
+  - **Window Validation**: `windows.id === undefined || windows.id < 0` check
+  - **User Feedback**: Alert messages directing users to extension toolbar icon
+  - **Disabled States**: Buttons and functions disabled when in restricted context
+  - **Visual Banner**: `restricted-context-banner` with AlertTriangle icon and explanation
+- **Result**: ✅ Extension gracefully handles browser new tab override being disabled with clear user guidance and no errors
+
+#### 2. ✅ FIXED: Dropdown Menu Positioning Issue
 - **Problem**: Dropdown menus getting cut off at bottom of sidebar
 - **Root Cause**: CSS `position: fixed` causing dropdowns to position relative to viewport instead of parent container
 - **Solution**: 
@@ -17,7 +38,7 @@
   - `src/sidepanel/components/LinkCard.tsx` - Added positioning state management
 - **Result**: ✅ Dropdown menus now intelligently position themselves to stay within viewport
 
-#### 2. ✅ COMPLETED: Floating AI Window Documentation
+#### 3. ✅ COMPLETED: Floating AI Window Documentation
 - **Problem**: Missing comprehensive documentation for floating AI assistant feature
 - **Solution**: Added detailed documentation covering all aspects of the feature
 - **Documentation Added**:
@@ -29,7 +50,7 @@
 - **Files Modified**: `dev-notes.md` - Added complete floating AI assistant section
 - **Result**: ✅ Complete feature documentation for development team and user reference
 
-#### 3. ✅ FIXED: Legacy Terminology Cleanup  
+#### 4. ✅ FIXED: Legacy Terminology Cleanup  
 - **Problem**: Remaining backend references to "Holding Area" instead of "Uncategorized Links"
 - **Root Cause**: UI was updated but variable names in code still used old terminology
 - **Solution**:
@@ -39,7 +60,7 @@
 - **Files Modified**: `src/sidepanel/Sidepanel.tsx` - Variable and comment updates
 - **Result**: ✅ Consistent terminology throughout UI and backend code
 
-#### 4. ✅ COMPLETED: Comprehensive README.md
+#### 5. ✅ COMPLETED: Comprehensive README.md
 - **Problem**: Missing professional user-facing documentation
 - **Solution**: Created complete project documentation
 - **Sections Included**:
@@ -55,7 +76,7 @@
 - **Files Created**: `README.md` - Complete project documentation (200+ lines)
 - **Result**: ✅ Professional documentation ready for open source release and user onboarding
 
-#### 5. ✅ VERIFIED: Error Handling & User Experience Review
+#### 6. ✅ VERIFIED: Error Handling & User Experience Review
 - **Review Scope**: Comprehensive codebase analysis for UX issues and improvements
 - **Areas Examined**:
   - Loading states and user feedback mechanisms
@@ -80,14 +101,14 @@
 - **Code Quality**: ✅ Added comprehensive logging for debugging and monitoring
 
 ### 📋 Issues Resolution Summary
-- **Total Issues Reported**: 8
-- **Bug Fixes Completed**: 3 (dropdown positioning, terminology cleanup, new tab defaults)
+- **Total Issues Reported**: 9
+- **Bug Fixes Completed**: 4 (window ID error, dropdown positioning, terminology cleanup, new tab defaults)
 - **Documentation Completed**: 2 (floating AI docs, comprehensive README)
 - **Quality Verification**: 1 (comprehensive UX and error handling review)
 - **Additional Enhancements**: 6+ improvements discovered and fixed
 
 ### 🎯 Impact & Status
-**All 8 reported issues have been successfully resolved!** The extension now features:
+**All 9 reported issues have been successfully resolved!** The extension now features:
 - ✅ Perfect dropdown positioning that adapts to viewport
 - ✅ Complete professional documentation for users and developers
 - ✅ Consistent terminology throughout the codebase
