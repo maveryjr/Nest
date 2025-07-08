@@ -149,7 +149,9 @@ const InboxCard: React.FC<InboxCardProps> = ({
       
       // Check if dropdown would overflow right edge - if so, position it to the left of the button
       const dropdownWidth = 200; // Approximate dropdown width
-      const shouldPositionLeft = buttonRect.right + dropdownWidth > window.innerWidth;
+      const shouldPositionLeft = sidebarRect
+        ? buttonRect.right + dropdownWidth > sidebarRect.right
+        : buttonRect.right + dropdownWidth > window.innerWidth;
       
       // Set CSS classes for positioning instead of manual coordinates
       setMenuPosition({ 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain, List, Grid3X3, Focus, Network, Mic, Edit } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronRight, Bookmark, FolderPlus, Settings, ExternalLink, LogOut, X, Tag, Inbox, Archive, CheckSquare, TabletSmartphone, Command as CommandIcon, Sparkles, MessageCircle, StickyNote, Camera, BarChart3, Brain, List, Grid3X3, Focus, Network, Mic, Edit, Maximize } from 'lucide-react';
 import { SavedLink, Collection, StorageData, SmartCollection, VoiceMemo, RichNote } from '../types';
 import { storage } from '../utils/storage';
 import LinkCard from './components/LinkCard';
@@ -1023,6 +1023,11 @@ const Sidepanel: React.FC = () => {
   const currentViewLinks = getCurrentViewLinks();
   const showNormalView = !searchMode && !selectedTag;
 
+  // Open sidepanel in full-page tab
+  const openFullPage = () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html?fullpage=true') });
+  };
+
   if (!session) {
     return (
       <div className="sidepanel auth-container">
@@ -1079,8 +1084,8 @@ const Sidepanel: React.FC = () => {
               <X size={18} />
             </button>
           )}
-          <button onClick={toggleScreenshotTool} className="screenshot-button" title="Screenshot Tool (Alt+C)">
-            <Camera size={18} />
+          <button onClick={openFullPage} className="screenshot-button" title="Open full-page view">
+            <Maximize size={18} />
           </button>
           <button onClick={toggleStickyNotes} className="sticky-notes-button" title="Toggle Sticky Notes (Alt+S)">
             <StickyNote size={18} />

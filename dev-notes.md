@@ -481,3 +481,38 @@ This represents a significant evolution from a simple bookmarking tool to an int
 - `src/sidepanel/components/InboxCard.tsx` - Added state management and corrected TagInput props
 
 Both fixes ensure consistent dropdown positioning behavior and proper tag management functionality across the application. 
+
+## 🚀 NEW BUG FIXES & ENHANCEMENTS (January 2025)
+
+### 1. ✅ FIXED: Dropdown Menu Cut-off in Sidebar
+- **Problem**: Dropdown menus still overflowed past the sidebar edge on narrow screens.
+- **Root Cause**: Overflow detection used full viewport width instead of sidebar container width.
+- **Solution**: Updated overflow logic in `LinkCard.tsx` and `InboxCard.tsx` to compare against sidebar `.content` bounds before falling back to `window.innerWidth`.
+- **Result**: Menus now intelligently flip left when needed and remain fully accessible.
+
+### 2. ✅ FIXED: Global Keyboard Shortcuts Not Working
+- **Problem**: Documented shortcuts (⌘A, ⌘⇧S, etc.) were unresponsive on webpages.
+- **Root Cause**: Shortcuts depended solely on `chrome.commands`, which are unavailable for many key combinations and pages.
+- **Solution**: Added robust key-listener in `content.ts` that:
+  - Ignores inputs/editable fields to avoid conflicts
+  - Toggles Floating AI (⌘A / Alt+A)
+  - Saves page (⌘⇧S / Ctrl⇧S)
+  - Saves to Inbox (⌘⇧I / Ctrl⇧I)
+  - Opens Command Palette (⌘K / CtrlK)
+- **Result**: All advertised shortcuts now work reliably across sites.
+
+### 3. ✅ ADDED: Full-Page Sidepanel View
+- **Feature**: New "Maximize" button in header opens Nest UI in a full browser tab (`sidepanel.html?fullpage=true`).
+- **Implementation**:
+  - Added `Maximize` icon button & helper in `Sidepanel.tsx`.
+  - Utilises `chrome.tabs.create` to spawn full-page view.
+- **Result**: Users can enjoy an expanded, desktop-style interface when desired.
+
+### 4. ✅ ENHANCED: Reading Analytics Transparency
+- **Improvement**: Info button added to Analytics Dashboard explaining how each metric is derived.
+- **Details**: Provides plain-language breakdown of totals, averages, streaks, growth calculations, and peak hours.
+
+### 5. 🔍 REVIEWED: New-Tab Toggle Behaviour
+- **Observation**: Disabling Nest as new tab no longer blocks core extension features after recent context-detection work. No code changes required at this time.
+
+--- 

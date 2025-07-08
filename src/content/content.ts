@@ -8,6 +8,46 @@ import FloatingAI from './FloatingAI';
 import StickyNotes from './StickyNotes';
 import ScreenshotTool from './ScreenshotTool';
 
+// ===============================================
+// Global Keyboard Shortcuts
+// ===============================================
+document.addEventListener('keydown', (event) => {
+  // Ignore if user is typing in an input, textarea, or editable element
+  const target = event.target as HTMLElement;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+
+  // Toggle Floating AI Assistant (Cmd+A on Mac, Alt+A on all platforms)
+  if ((event.metaKey && key === 'a') || (event.altKey && key === 'a')) {
+    event.preventDefault();
+    toggleFloatingAI();
+    return;
+  }
+
+  // Save current page (Cmd/Ctrl+Shift+S)
+  if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 's') {
+    event.preventDefault();
+    chrome.runtime.sendMessage({ action: 'saveCurrentPage' });
+    return;
+  }
+
+  // Save to inbox (Cmd/Ctrl+Shift+I)
+  if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 'i') {
+    event.preventDefault();
+    chrome.runtime.sendMessage({ action: 'saveCurrentPage', toInbox: true });
+    return;
+  }
+
+  // Open command palette (Cmd/Ctrl+K)
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && key === 'k') {
+    event.preventDefault();
+    chrome.runtime.sendMessage({ action: 'openCommandPalette' });
+    return;
+  }
+});
 // State for floating AI
 let floatingAIRoot: any = null;
 let isFloatingAIVisible = false;

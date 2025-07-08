@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Clock, Brain, Target, BookOpen, Lightbulb, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Brain, Target, BookOpen, Lightbulb, Calendar, Info } from 'lucide-react';
 import { AnalyticsService } from '../../utils/analytics';
 
 interface AnalyticsDashboardProps {
@@ -20,6 +20,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onClose }) => {
   const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<'week' | 'month'>('week');
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     loadAnalytics();
@@ -90,6 +91,9 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onClose }) => {
       <div className="dashboard-header">
         <button onClick={onClose} className="close-button">×</button>
         <h2><BarChart3 size={20} /> Reading Analytics</h2>
+        <button onClick={() => setShowInfo(!showInfo)} className="info-button" title="How are these metrics calculated?">
+          <Info size={16} />
+        </button>
         
         <div className="timeframe-selector">
           <button 
@@ -106,6 +110,21 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onClose }) => {
           </button>
         </div>
       </div>
+
+      {showInfo && (
+        <div className="analytics-info-panel">
+          <h3>How we calculate your analytics</h3>
+          <ul>
+            <li><strong>Items This Period</strong>: Total links read and highlights made during the selected timeframe.</li>
+            <li><strong>Daily Average</strong>: Items this period divided by number of active days.</li>
+            <li><strong>Most Active Day</strong>: Day with the highest combined link reads and highlights.</li>
+            <li><strong>Knowledge Growth</strong>: Percentage change in activity compared to the previous equivalent period.</li>
+            <li><strong>Peak Hours</strong>: Hours of day when you most frequently read or highlight.</li>
+            <li><strong>Reading Streak</strong>: Consecutive days with at least one read or highlight.</li>
+          </ul>
+          <button onClick={() => setShowInfo(false)} className="close-button" style={{ marginTop: '8px' }}>Got it</button>
+        </div>
+      )}
 
       <div className="dashboard-content">
         {/* Summary Stats */}
