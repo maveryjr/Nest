@@ -41,13 +41,20 @@ const NewTab: React.FC = () => {
   const [isRestrictedContext, setIsRestrictedContext] = useState(false);
 
   useEffect(() => {
-    checkExtensionContext();
-    checkIfEnabled();
-    loadData();
-    setGreeting(getTimeBasedGreeting());
-    
-    // Load dark mode setting
-    loadDarkModeSetting();
+    const initializeApp = async () => {
+      // First check extension context and wait for it to complete
+      await checkExtensionContext();
+      
+      // Then run other initialization functions
+      checkIfEnabled();
+      loadData();
+      setGreeting(getTimeBasedGreeting());
+      
+      // Load dark mode setting
+      loadDarkModeSetting();
+    };
+
+    initializeApp();
   }, []);
 
   const checkExtensionContext = async () => {
