@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   ExternalLink, 
   MoreVertical, 
@@ -27,6 +27,7 @@ interface InboxCardProps {
   onTagsUpdated: () => void;
   isSelected?: boolean;
   onSelect?: (linkId: string) => void;
+  onOpenDetail: (link: SavedLink) => void;
   compactView?: boolean;
 }
 
@@ -40,6 +41,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
   onTagsUpdated,
   isSelected = false,
   onSelect,
+  onOpenDetail,
   compactView = false
 }) => {
   const [showMenu, setShowMenu] = useState(false);
@@ -50,9 +52,10 @@ const InboxCard: React.FC<InboxCardProps> = ({
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleOpenLink = () => {
-    chrome.tabs.create({ url: link.url });
+    onOpenDetail(link);
   };
 
   const handleCheckboxChange = (checked: boolean) => {
@@ -62,16 +65,22 @@ const InboxCard: React.FC<InboxCardProps> = ({
   };
 
   const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('Menu click detected, showMenu:', showMenu);
+    e.preventDefault();
     e.stopPropagation();
+    
     if (!showMenu) {
       const rect = e.currentTarget.getBoundingClientRect();
-      setMenuPosition({
+      const newPosition = {
         top: rect.bottom + 4,
         left: rect.right - 180 // Align right edge of menu with button
-      });
+      };
+      console.log('Setting menu position:', newPosition);
+      setMenuPosition(newPosition);
     }
     setShowMenu(!showMenu);
     setShowCollectionsSubmenu(false);
+    console.log('Menu will be shown:', !showMenu);
   };
 
   const handleMoveToCollection = (collectionId: string) => {
@@ -160,13 +169,25 @@ const InboxCard: React.FC<InboxCardProps> = ({
 
   // Close menu when clicking outside
   React.useEffect(() => {
-    const handleClickOutside = () => {
-      setShowMenu(false);
-      setShowCollectionsSubmenu(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Check if the click is on a dropdown button or inside a dropdown menu
+      const isDropdownButton = target.closest('.action-button-compact, .inbox-card-menu-button');
+      const isDropdownMenu = target.closest('.dropdown-menu');
+      
+      if (!isDropdownButton && !isDropdownMenu) {
+        setShowMenu(false);
+        setShowCollectionsSubmenu(false);
+      }
     };
 
     if (showMenu) {
-      document.addEventListener('click', handleClickOutside);
+      // Use timeout to avoid immediate closing when menu opens
+      setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 100);
+      
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showMenu]);
@@ -208,7 +229,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
             >
               <ExternalLink size={14} />
             </a>
-            <div className="dropdown">
+            <div className="dropdown" ref={compactView ? dropdownRef : undefined}>
               <button
                 onClick={handleMenuClick}
                 className="action-button-compact"
@@ -319,7 +340,7 @@ const InboxCard: React.FC<InboxCardProps> = ({
                     <ExternalLink size={14} />
                   </a>
 
-                  <div className="inbox-card-menu-container dropdown">
+                  <div className="inbox-card-menu-container dropdown" ref={!compactView ? dropdownRef : undefined}>
                     <button
                       onClick={handleMenuClick}
                       className="inbox-card-menu-button"

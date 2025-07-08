@@ -1,6 +1,6 @@
 {
   "name": "nest-chrome-extension",
-  "version": "1.0.0",
+  "version": "0.6.0",
   "description": "Smart bookmarking and notetaking Chrome extension",
   "scripts": {
     "build": "webpack --mode production",

@@ -42,12 +42,15 @@ const NewTab: React.FC = () => {
     checkIfEnabled();
     loadData();
     setGreeting(getTimeBasedGreeting());
+    
+    // Load dark mode setting
+    loadDarkModeSetting();
   }, []);
 
   const checkIfEnabled = async () => {
     try {
       const result = await chrome.storage.local.get('nest_newtab_enabled');
-      setIsEnabled(result.nest_newtab_enabled !== false); // Default to enabled
+      setIsEnabled(result.nest_newtab_enabled === true); // Default to disabled
     } catch (error) {
       console.error('Failed to check new tab setting:', error);
     }
@@ -111,6 +114,20 @@ const NewTab: React.FC = () => {
       console.error('Failed to load new tab data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDarkModeSetting = async () => {
+    try {
+      const result = await chrome.storage.local.get('nest_settings');
+      const settings = result.nest_settings || {};
+      if (settings.darkMode) {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
+    } catch (error) {
+      console.error('Failed to load dark mode setting:', error);
     }
   };
 

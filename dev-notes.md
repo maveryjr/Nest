@@ -198,6 +198,20 @@
   - Visual nodes for different content types (links, highlights, notes, tags)
   - Connection strength visualization with configurable thresholds
   - Real-time filtering options for content types
+
+#### Floating Window Feature ✅ NEW!
+- **Status**: Just implemented and ready for production
+- **Features**:
+  - Raycast-like floating window for Nest sidebar
+  - Opens as standalone popup window with 420x600 dimensions
+  - Positioned intelligently in center of screen
+  - Rounded corners and blur effects for modern appearance
+  - Close button and floating indicator in header
+  - Accessible via Settings → Interface Options
+  - Command palette integration with keyword search
+  - Auto-focus existing window if already open
+  - Proper cleanup when window is closed
+- **Technical**: Uses chrome.windows API with type 'popup' for standalone window creation
   - Expandable fullscreen mode for detailed exploration
 - **Rich Annotations System**:
   - Voice memo recording with playback controls

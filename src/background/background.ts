@@ -164,6 +164,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       } else if (request.action === 'removeHighlightFromStorage') {
         const result = await removeHighlightFromStorage(request.highlightId, request.url);
         sendResponse(result);
+      } else if (request.action === 'analyzeLinkContent') {
+        // New action for analyzing already-saved link content
+        const { title, url, content } = request;
+        const result = await analyzeLinkContent(title, url, content);
+        sendResponse(result);
+      } else if (request.action === 'openFloatingWindow') {
+        handleOpenFloatingWindow();
+        sendResponse({ success: true });
+        return true;
       } else {
         sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -333,6 +342,34 @@ async function analyzePageWithAI(tab: chrome.tabs.Tab): Promise<{ success: boole
     return { success: true, analysis };
   } catch (error) {
     console.error('Failed to analyze page with AI:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// New function to analyze saved link content with AI
+async function analyzeLinkContent(title: string, url: string, content: string): Promise<{ success: boolean; analysis?: any; error?: string }> {
+  try {
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+      return { success: false, error: 'Cannot analyze this type of URL.' };
+    }
+
+    // Get user settings to configure AI service
+    const [settingsResult] = await Promise.all([
+      chrome.storage.local.get('nest_settings')
+    ]);
+    const userSettings = settingsResult.nest_settings || {};
+    
+    // Configure AI service with user's API key if available
+    if (userSettings.openaiApiKey) {
+      aiService.updateApiKey(userSettings.openaiApiKey);
+      console.log('Background: AI service configured with user API key for link analysis');
+    }
+
+    // Use the provided content (could be summary, notes, or extracted content)
+    const analysis = await aiService.analyzeContent(content, title, url);
+    return { success: true, analysis };
+  } catch (error) {
+    console.error('Failed to analyze link content with AI:', error);
     return { success: false, error: (error as Error).message };
   }
 }
@@ -710,3 +747,58 @@ async function removeHighlightFromStorage(highlightId: string, url: string): Pro
     };
   }
 } 
+
+// Add floating window functionality
+async function handleOpenFloatingWindow() {
+  try {
+    // Check if floating window already exists
+    const existingWindows = await chrome.windows.getAll({ windowTypes: ['popup'] });
+    const nestFloatingWindow = existingWindows.find(window => 
+      window.type === 'popup' && 
+      // We'll identify our window by its specific dimensions and properties
+      window.width === 420 && window.height === 600
+    );
+
+    if (nestFloatingWindow) {
+      // Focus existing floating window
+      await chrome.windows.update(nestFloatingWindow.id!, { focused: true });
+      return;
+    }
+
+    // Get current screen dimensions to position window
+    const currentWindow = await chrome.windows.getCurrent();
+    const left = Math.round((currentWindow.width! - 420) / 2 + (currentWindow.left || 0));
+    const top = Math.round((currentWindow.height! - 600) / 3 + (currentWindow.top || 0));
+
+    // Create floating window
+    const floatingWindow = await chrome.windows.create({
+      url: chrome.runtime.getURL('sidepanel.html') + '?floating=true',
+      type: 'popup',
+      width: 420,
+      height: 600,
+      left: left,
+      top: top,
+      focused: true
+    });
+
+    // Store floating window ID for future reference
+    if (floatingWindow.id) {
+      await chrome.storage.local.set({ 'nest_floating_window_id': floatingWindow.id });
+    }
+
+  } catch (error) {
+    console.error('Failed to create floating window:', error);
+  }
+}
+
+// Listen for window close events to clean up floating window ID
+chrome.windows.onRemoved.addListener(async (windowId) => {
+  try {
+    const result = await chrome.storage.local.get('nest_floating_window_id');
+    if (result.nest_floating_window_id === windowId) {
+      await chrome.storage.local.remove('nest_floating_window_id');
+    }
+  } catch (error) {
+    console.error('Failed to clean up floating window ID:', error);
+  }
+}); 

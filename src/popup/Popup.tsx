@@ -9,9 +9,24 @@ const Popup: React.FC = () => {
 
   useEffect(() => {
     getCurrentTab();
+    loadDarkModeSetting();
     // Automatically open sidebar when popup loads
     openSidepanel();
   }, []);
+
+  const loadDarkModeSetting = async () => {
+    try {
+      const result = await chrome.storage.local.get('nest_settings');
+      const settings = result.nest_settings || {};
+      if (settings.darkMode) {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
+    } catch (error) {
+      console.error('Failed to load dark mode setting:', error);
+    }
+  };
 
   const getCurrentTab = async () => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });

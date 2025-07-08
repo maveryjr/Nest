@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nest - Smart Bookmarks & Notes",
-  "version": "1.0.0",
+  "version": "0.6.0",
   "description": "A smart bookmarking and notetaking sidebar for Chrome",
   "permissions": [
     "storage",
@@ -9,7 +9,8 @@
     "contextMenus",
     "tabs",
     "notifications",
-    "sidePanel"
+    "sidePanel",
+    "windows"
   ],
   "host_permissions": [
     "http://*/*",

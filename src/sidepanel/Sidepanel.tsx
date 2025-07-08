@@ -12,6 +12,7 @@ import TabSync from './components/TabSync';
 import AddNoteModal from './components/AddNoteModal';
 import CreateCollectionModal from './components/CreateCollectionModal';
 import SavePromptModal from './components/SavePromptModal';
+import LinkDetailModal from './components/LinkDetailModal';
 import TagFilters from './components/TagFilters';
 import SettingsComponent from './components/Settings';
 import { supabase } from '../utils/supabase';
@@ -36,6 +37,7 @@ const Sidepanel: React.FC = () => {
     categories: [],
     settings: { defaultCategory: 'general', autoSummarize: true }
   });
+  const [isFloatingWindow, setIsFloatingWindow] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<SavedLink[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -53,6 +55,8 @@ const Sidepanel: React.FC = () => {
   const [selectedLink, setSelectedLink] = useState<SavedLink | null>(null);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showCreateCollectionModal, setShowCreateCollectionModal] = useState(false);
+  const [showLinkDetailModal, setShowLinkDetailModal] = useState(false);
+  const [selectedLinkForDetail, setSelectedLinkForDetail] = useState<SavedLink | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
@@ -144,17 +148,43 @@ const Sidepanel: React.FC = () => {
     loadData();
     checkForNewTabSearch();
     loadCompactViewSetting();
+    loadDarkModeSetting();
+    checkFloatingWindowMode();
   }, []);
+
+  // Check if this is a floating window
+  const checkFloatingWindowMode = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isFloating = urlParams.get('floating') === 'true';
+    setIsFloatingWindow(isFloating);
+    
+    if (isFloating) {
+      // Add floating window specific styling
+      document.body.classList.add('floating-window');
+    }
+  };
 
   // Load compact view setting from storage
   const loadCompactViewSetting = async () => {
     try {
       const result = await chrome.storage.local.get('nest_compact_view');
-      if (result.nest_compact_view !== undefined) {
-        setCompactView(result.nest_compact_view);
-      }
+      setCompactView(result.nest_compact_view === true);
     } catch (error) {
       console.error('Failed to load compact view setting:', error);
+    }
+  };
+
+  const loadDarkModeSetting = async () => {
+    try {
+      const result = await chrome.storage.local.get('nest_settings');
+      const settings = result.nest_settings || {};
+      if (settings.darkMode) {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
+    } catch (error) {
+      console.error('Failed to load dark mode setting:', error);
     }
   };
 
@@ -387,6 +417,11 @@ const Sidepanel: React.FC = () => {
     setShowAddNoteModal(true);
   };
 
+  const handleOpenLinkDetail = (link: SavedLink) => {
+    setSelectedLinkForDetail(link);
+    setShowLinkDetailModal(true);
+  };
+
   const handleSaveNote = async (note: string) => {
     if (selectedLink) {
       await handleUpdateLink(selectedLink.id, { userNote: note });
@@ -479,13 +514,10 @@ const Sidepanel: React.FC = () => {
       const organizationPromises = inboxLinks.map(async (link) => {
         try {
           const response = await chrome.runtime.sendMessage({ 
-            action: 'analyzePageWithAI',
-            linkData: {
-              title: link.title,
-              url: link.url,
-              description: link.description,
-              content: link.aiSummary || link.userNote || ''
-            }
+            action: 'analyzeLinkContent',
+            title: link.title,
+            url: link.url,
+            content: link.aiSummary || link.userNote || link.title
           });
 
           if (response.success && response.analysis) {
@@ -809,9 +841,12 @@ const Sidepanel: React.FC = () => {
       // Process each holding area link
       const organizePromises = holdingAreaLinks.map(async (link) => {
         try {
-          // Request AI analysis using the existing analyzePageWithAI action
+          // Request AI analysis using the new analyzeLinkContent action
           const analysisResponse = await chrome.runtime.sendMessage({
-            action: 'analyzePageWithAI'
+            action: 'analyzeLinkContent',
+            title: link.title,
+            url: link.url,
+            content: link.aiSummary || link.userNote || link.title
           });
 
           if (analysisResponse.success && analysisResponse.analysis) {
@@ -822,6 +857,23 @@ const Sidepanel: React.FC = () => {
             let highestConfidence = 0;
             let bestMatchReason = '';
 
+            // Helper function to calculate match score between two strings
+            const calculateMatchScore = (text1: string, text2: string): number => {
+              const words1 = text1.toLowerCase().split(/\s+/);
+              const words2 = text2.toLowerCase().split(/\s+/);
+              let matches = 0;
+              
+              for (const word1 of words1) {
+                for (const word2 of words2) {
+                  if (word1.includes(word2) || word2.includes(word1)) {
+                    matches++;
+                  }
+                }
+              }
+              
+              return matches / Math.max(words1.length, words2.length);
+            };
+
             // Check collections against AI category suggestions
             for (const collection of collections) {
               const collectionName = collection.name.toLowerCase();
@@ -829,26 +881,12 @@ const Sidepanel: React.FC = () => {
               // Try to match with category suggestions
               if (analysis.categorySuggestions) {
                 for (const suggestion of analysis.categorySuggestions) {
-                  const category = suggestion.category.toLowerCase();
+                  const matchScore = calculateMatchScore(collectionName, suggestion.category) * suggestion.confidence;
                   
-                  // More flexible matching - check if collection name contains category words or vice versa
-                  const categoryWords = category.split(/\s+/);
-                  const collectionWords = collectionName.split(/\s+/);
-                  
-                  let matchScore = 0;
-                  for (const catWord of categoryWords) {
-                    for (const colWord of collectionWords) {
-                      if (catWord.includes(colWord) || colWord.includes(catWord)) {
-                        matchScore += suggestion.confidence;
-                      }
-                    }
-                  }
-                  
-                  // Lower the threshold for better matching
-                  if (matchScore > 0.4 && matchScore > highestConfidence) {
+                  if (matchScore > 0.2 && matchScore > highestConfidence) {
                     highestConfidence = matchScore;
                     bestCollectionId = collection.id;
-                    bestMatchReason = `Category "${suggestion.category}" matches collection "${collection.name}"`;
+                    bestMatchReason = `Category "${suggestion.category}" matches collection "${collection.name}" (score: ${matchScore.toFixed(2)})`;
                   }
                 }
               }
@@ -856,49 +894,57 @@ const Sidepanel: React.FC = () => {
               // Also try matching with content topics
               if (analysis.topics) {
                 for (const topic of analysis.topics) {
-                  const topicLower = topic.toLowerCase();
-                  if (collectionName.includes(topicLower) || topicLower.includes(collectionName)) {
-                    const score = 0.5; // Give topics a moderate score
-                    if (score > highestConfidence) {
-                      highestConfidence = score;
-                      bestCollectionId = collection.id;
-                      bestMatchReason = `Topic "${topic}" matches collection "${collection.name}"`;
-                    }
+                  const matchScore = calculateMatchScore(collectionName, topic) * 0.6; // Lower weight for topics
+                  
+                  if (matchScore > 0.2 && matchScore > highestConfidence) {
+                    highestConfidence = matchScore;
+                    bestCollectionId = collection.id;
+                    bestMatchReason = `Topic "${topic}" matches collection "${collection.name}" (score: ${matchScore.toFixed(2)})`;
+                  }
+                }
+              }
+
+              // Try matching with tag suggestions
+              if (analysis.tagSuggestions) {
+                for (const tagSugg of analysis.tagSuggestions) {
+                  const matchScore = calculateMatchScore(collectionName, tagSugg.tag) * tagSugg.confidence * 0.5; // Lower weight for tags
+                  
+                  if (matchScore > 0.15 && matchScore > highestConfidence) {
+                    highestConfidence = matchScore;
+                    bestCollectionId = collection.id;
+                    bestMatchReason = `Tag "${tagSugg.tag}" matches collection "${collection.name}" (score: ${matchScore.toFixed(2)})`;
                   }
                 }
               }
             }
 
-            // If no good match found, try to create a reasonable default assignment
+            // If no good match found but we have collections, try fallback logic
             if (!bestCollectionId && collections.length > 0) {
-              // Look for a "general" or similar collection
+              // Look for specific collection types
               const generalCollection = collections.find(c => 
-                c.name.toLowerCase().includes('general') || 
-                c.name.toLowerCase().includes('misc') ||
-                c.name.toLowerCase().includes('other') ||
-                c.name.toLowerCase().includes('default')
+                /general|misc|other|default|unsorted|random/i.test(c.name)
               );
               
               if (generalCollection) {
                 bestCollectionId = generalCollection.id;
                 bestMatchReason = 'Moved to general collection as fallback';
-                highestConfidence = 0.3;
+                highestConfidence = 0.1;
               } else {
-                // Just use the first available collection as fallback
+                // Use the first available collection as last resort
                 bestCollectionId = collections[0].id;
-                bestMatchReason = 'Moved to available collection as fallback';
-                highestConfidence = 0.2;
+                bestMatchReason = 'Moved to first available collection as fallback';
+                highestConfidence = 0.05;
               }
             }
 
-            // Move the link if we found any collection (lowered threshold)
-            if (bestCollectionId && highestConfidence > 0.1) {
+            // Move the link if we found any collection
+            if (bestCollectionId) {
               await storage.updateLink(link.id, { collectionId: bestCollectionId });
               
-              // Apply AI tags if available
+              // Apply AI tags if available and confidence is decent
               if (analysis.tagSuggestions && analysis.tagSuggestions.length > 0) {
                 const highConfidenceTags = analysis.tagSuggestions
-                  .filter(tag => tag.confidence > 0.5) // Lowered threshold
+                  .filter(tag => tag.confidence > 0.4) // Reasonable threshold
                   .map(tag => tag.tag)
                   .slice(0, 3);
                 
@@ -907,7 +953,7 @@ const Sidepanel: React.FC = () => {
                 }
               }
               
-              console.log(`AI Organized: "${link.title}" -> Collection (${bestMatchReason})`);
+              console.log(`AI Organized: "${link.title}" -> Collection "${collections.find(c => c.id === bestCollectionId)?.name}" (${bestMatchReason})`);
               return { success: true, linkId: link.id, collectionId: bestCollectionId, reason: bestMatchReason };
             }
           }
@@ -1022,9 +1068,18 @@ const Sidepanel: React.FC = () => {
       <div className="header">
         <div className="header-title">
           <Bookmark className="header-icon" />
-          <h1>Nest</h1>
+          <h1>Nest{isFloatingWindow && <span className="floating-indicator"> • Floating</span>}</h1>
         </div>
         <div className="header-actions">
+          {isFloatingWindow && (
+            <button
+              onClick={() => window.close()}
+              className="header-button close-button"
+              title="Close floating window"
+            >
+              <X size={18} />
+            </button>
+          )}
           <button onClick={toggleScreenshotTool} className="screenshot-button" title="Screenshot Tool (Alt+C)">
             <Camera size={18} />
           </button>
@@ -1294,6 +1349,7 @@ const Sidepanel: React.FC = () => {
                         onTagsUpdated={handleTagsUpdated}
                         isSelected={selectedInboxLinks.includes(link.id)}
                         onSelect={handleSelectInboxLink}
+                        onOpenDetail={handleOpenLinkDetail}
                         compactView={compactView}
                       />
                     ))
@@ -1326,6 +1382,7 @@ const Sidepanel: React.FC = () => {
                         onDeleteLink={handleDeleteLink}
                         onAddNote={handleAddNote}
                         onTagsUpdated={handleTagsUpdated}
+                        onOpenDetail={handleOpenLinkDetail}
                         compactView={compactView}
                       />
                     ))}
@@ -1383,6 +1440,7 @@ const Sidepanel: React.FC = () => {
                         onMoveToCollection={handleMoveToCollection}
                         onAddNote={handleAddNote}
                         onTagsUpdated={handleTagsUpdated}
+                        onOpenDetail={handleOpenLinkDetail}
                         compactView={compactView}
                       />
                     ))
@@ -1437,6 +1495,7 @@ const Sidepanel: React.FC = () => {
                           onAddNote={handleAddNote}
                           onTagsUpdated={handleTagsUpdated}
                           onUpdate={loadData}
+                          onOpenDetail={handleOpenLinkDetail}
                           compactView={compactView}
                         />
                       );
@@ -1479,6 +1538,20 @@ const Sidepanel: React.FC = () => {
         <CreateCollectionModal
           onSave={handleCreateCollection}
           onClose={() => setShowCreateCollectionModal(false)}
+        />
+      )}
+
+      {showLinkDetailModal && selectedLinkForDetail && (
+        <LinkDetailModal
+          link={selectedLinkForDetail}
+          collections={data.collections}
+          onClose={() => {
+            setShowLinkDetailModal(false);
+            setSelectedLinkForDetail(null);
+          }}
+          onUpdate={handleUpdateLink}
+          onDelete={handleDeleteLink}
+          onAddNote={handleAddNote}
         />
       )}
 

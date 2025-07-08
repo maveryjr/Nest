@@ -12,6 +12,7 @@ interface CollectionCardProps {
   onAddNote: (link: SavedLink) => void;
   onTagsUpdated?: () => void;
   onUpdate?: () => void; // Callback for when collection is updated
+  onOpenDetail: (link: SavedLink) => void;
   compactView?: boolean;
 }
 
@@ -23,6 +24,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   onAddNote,
   onTagsUpdated,
   onUpdate,
+  onOpenDetail,
   compactView = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -100,6 +102,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
                   onMoveToCollection={handleMoveToCollection}
                   onAddNote={onAddNote}
                   onTagsUpdated={onTagsUpdated}
+                  onOpenDetail={onOpenDetail}
                   compactView={compactView}
                 />
               ))

@@ -11,6 +11,7 @@ interface SmartCollectionCardProps {
   onDeleteLink: (linkId: string) => void;
   onAddNote: (link: SavedLink) => void;
   onTagsUpdated?: () => void;
+  onOpenDetail: (link: SavedLink) => void;
   compactView?: boolean;
 }
 
@@ -21,6 +22,7 @@ const SmartCollectionCard: React.FC<SmartCollectionCardProps> = ({
   onDeleteLink,
   onAddNote,
   onTagsUpdated,
+  onOpenDetail,
   compactView = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -147,6 +149,7 @@ const SmartCollectionCard: React.FC<SmartCollectionCardProps> = ({
                   onMoveToCollection={handleMoveToCollection}
                   onAddNote={onAddNote}
                   onTagsUpdated={onTagsUpdated}
+                  onOpenDetail={onOpenDetail}
                   compactView={compactView}
                 />
               ))}

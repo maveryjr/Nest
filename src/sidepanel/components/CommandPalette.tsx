@@ -99,6 +99,23 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
        keywords: ['tab', 'sync', 'browser', 'open', 'tabs', 'save']
      });
 
+     allCommands.push({
+       id: 'floating-window',
+       type: 'action',
+       title: 'Open Floating Window',
+       subtitle: 'Open Nest in a floating window (like Raycast)',
+       icon: <ExternalLink size={16} />,
+       action: async () => {
+         try {
+           await chrome.runtime.sendMessage({ action: 'openFloatingWindow' });
+           onClose();
+         } catch (error) {
+           console.error('Failed to open floating window:', error);
+         }
+       },
+       keywords: ['floating', 'window', 'popup', 'raycast', 'detached']
+     });
+
     // Add collections
     collections.forEach(collection => {
       allCommands.push({

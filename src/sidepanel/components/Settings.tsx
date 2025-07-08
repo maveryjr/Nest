@@ -82,14 +82,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         defaultPrivacy: false,
         showTooltips: true,
         compactView: false,
-        darkMode: false,
+        darkMode: savedSettings.darkMode ?? false,
         autoTagging: savedSettings.autoTagging ?? data.settings.autoTagging ?? false,
         autoCategorization: savedSettings.autoCategorization ?? data.settings.autoCategorization ?? false,
         openaiApiKey: savedSettings.openaiApiKey ?? data.settings.openaiApiKey ?? '',
-        newTabEnabled: newTabResult.nest_newtab_enabled !== false,
+        newTabEnabled: newTabResult.nest_newtab_enabled === true,
         highlightColor: savedSettings.highlightColor ?? data.settings.highlightColor ?? 'yellow',
         highlightStyle: savedSettings.highlightStyle ?? data.settings.highlightStyle ?? 'gradient'
       });
+      
+      // Apply dark mode if it's enabled
+      if (savedSettings.darkMode) {
+        document.body.classList.add('dark-mode');
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
     } finally {
@@ -133,6 +138,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         await chrome.storage.local.set({ 'nest_newtab_enabled': newSettings.newTabEnabled });
       }
       
+      // Apply dark mode immediately
+      if (newSettings.darkMode !== settings.darkMode) {
+        if (newSettings.darkMode) {
+          document.body.classList.add('dark-mode');
+        } else {
+          document.body.classList.remove('dark-mode');
+        }
+      }
+      
       // Save other settings to the main storage system
       const currentData = await storage.getData();
       const updatedData = {
@@ -156,7 +170,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           autoCategorization: newSettings.autoCategorization,
           openaiApiKey: newSettings.openaiApiKey,
           highlightColor: newSettings.highlightColor,
-          highlightStyle: newSettings.highlightStyle
+          highlightStyle: newSettings.highlightStyle,
+          darkMode: newSettings.darkMode
         }
       });
       
@@ -224,6 +239,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
   const updateSetting = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleOpenFloatingWindow = async () => {
+    try {
+      await chrome.runtime.sendMessage({ action: 'openFloatingWindow' });
+    } catch (error) {
+      console.error('Failed to open floating window:', error);
+      setMessage('Failed to open floating window');
+    }
   };
 
   const tabs = [
@@ -377,6 +401,39 @@ const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 <p className="setting-description">
                   Replace Chrome's new tab page with Nest
                 </p>
+              </div>
+
+              <div className="setting-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={settings.darkMode}
+                    onChange={(e) => setSettings({...settings, darkMode: e.target.checked})}
+                  />
+                  Dark mode
+                </label>
+                <p className="setting-description">
+                  Use dark theme for the interface
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Interface Options</h3>
+              
+              <div className="setting-item-sidebar">
+                <div className="setting-info">
+                  <div>
+                    <div className="setting-label">Floating Window</div>
+                    <div className="setting-description">Open Nest in a floating window (like Raycast)</div>
+                  </div>
+                </div>
+                <button 
+                  onClick={handleOpenFloatingWindow} 
+                  className="button-small"
+                >
+                  Open Floating Window
+                </button>
               </div>
             </div>
 

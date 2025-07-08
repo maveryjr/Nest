@@ -19,6 +19,7 @@ interface LinkCardProps {
   onMoveToCollection: (linkId: string, collectionId: string) => void;
   onAddNote: (link: SavedLink) => void;
   onTagsUpdated?: () => void; // Callback when tags are updated
+  onOpenDetail: (link: SavedLink) => void;
   compactView?: boolean;
 }
 
@@ -30,6 +31,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
   onMoveToCollection,
   onAddNote,
   onTagsUpdated,
+  onOpenDetail,
   compactView = false
 }) => {
   const [showMenu, setShowMenu] = useState(false);
@@ -100,7 +102,7 @@ const LinkCard: React.FC<LinkCardProps> = ({
   };
 
   const handleOpenLink = () => {
-    chrome.tabs.create({ url: link.url });
+    onOpenDetail(link);
   };
 
   const formatDate = (date: Date) => {
